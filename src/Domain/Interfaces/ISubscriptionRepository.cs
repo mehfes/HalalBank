@@ -6,6 +6,7 @@ public interface ISubscriptionRepository
 {
     Task<Subscription?> GetByIdAsync(int id);
     Task<IEnumerable<Subscription>> GetByCustomerIdAsync(int customerId);
+    Task<IEnumerable<Subscription>> GetOverdueAsync(DateTime currentDate);
     Task<IEnumerable<Subscription>> GetAllAsync();
     Task<Subscription> AddAsync(Subscription subscription);
     Task UpdateAsync(Subscription subscription);

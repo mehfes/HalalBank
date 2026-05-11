@@ -20,6 +20,11 @@ public class SubscriptionRepository : ISubscriptionRepository
     public async Task<IEnumerable<Subscription>> GetByCustomerIdAsync(int customerId) =>
         await _context.Subscriptions.Where(s => s.CustomerId == customerId).ToListAsync();
 
+    public async Task<IEnumerable<Subscription>> GetOverdueAsync(DateTime currentDate) =>
+        await _context.Subscriptions
+            .Where(s => s.Status == Domain.Enums.SubscriptionStatus.Active && s.NextPaymentDate <= currentDate)
+            .ToListAsync();
+
     public async Task<IEnumerable<Subscription>> GetAllAsync() =>
         await _context.Subscriptions.Include(s => s.Customer).ToListAsync();
 
