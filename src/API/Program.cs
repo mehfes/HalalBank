@@ -25,6 +25,7 @@ builder.Services.AddScoped<IDebtService, MockDebtService>();
 builder.Services.AddScoped<IPaymentGateway, MockPaymentGateway>();
 builder.Services.AddScoped<IExternalPaymentService, MockExternalPaymentService>();
 builder.Services.AddScoped<IPaymentTaskService, PaymentTaskService>();
+builder.Services.AddScoped<INotificationService, MockNotificationService>();
 builder.Services.AddHttpClient("MockBankApi", client =>
     client.BaseAddress = new Uri("http://mockbank.local"))
     .ConfigurePrimaryHttpMessageHandler(() => new MockBankMessageHandler());

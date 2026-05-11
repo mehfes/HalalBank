@@ -1,4 +1,5 @@
 using HalalBank.Application.Interfaces;
+using HalalBank.Domain.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HalalBank.API.Controllers;
@@ -8,10 +9,17 @@ namespace HalalBank.API.Controllers;
 public class PaymentTaskController : ControllerBase
 {
     private readonly IPaymentTaskService _paymentTaskService;
+    private readonly INotificationService _notificationService;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public PaymentTaskController(IPaymentTaskService paymentTaskService)
+    public PaymentTaskController(
+        IPaymentTaskService paymentTaskService,
+        INotificationService notificationService,
+        IUnitOfWork unitOfWork)
     {
         _paymentTaskService = paymentTaskService;
+        _notificationService = notificationService;
+        _unitOfWork = unitOfWork;
     }
 
     [HttpPost("process-overdue")]
@@ -19,5 +27,21 @@ public class PaymentTaskController : ControllerBase
     {
         var result = await _paymentTaskService.ProcessOverdueSubscriptionsAsync();
         return Ok(result);
+    }
+
+    [HttpPost("send-reminders")]
+    public async Task<IActionResult> SendReminders()
+    {
+        var now = DateTime.UtcNow;
+        var upcoming = await _unitOfWork.Subscriptions.GetUpcomingPaymentsAsync(now, now.AddDays(3));
+        var sentCount = 0;
+
+        foreach (var subscription in upcoming)
+        {
+            await _notificationService.SendReminderEmailAsync(subscription.Customer, subscription);
+            sentCount++;
+        }
+
+        return Ok(new { remindersSent = sentCount });
     }
 }
