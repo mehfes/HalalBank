@@ -260,17 +260,17 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[User clicks Pay on subscription] --> B[Navigate to<br/>/payment-gateway/{id}]
-    B --> C[POST /api/payments/query-debt]
+    A[User clicks Pay on subscription] --> B["Navigate to<br/>/payment-gateway/ID"]
+    B --> C["POST /api/payments/query-debt"]
     C --> D{Already paid for period?}
-    D -->|Yes| E[Show "Already Paid" badge<br/>Auto-redirect in 5s<br/>or click "Go to Dashboard"]
-    D -->|No| F[Show Amount Due, Due Date, Period]
+    D -->|Yes| E["Show Already Paid badge<br/>Auto-redirect in 5s<br/>or click Go to Dashboard"]
+    D -->|No| F["Show Amount Due, Due Date, Period"]
     F --> G[User clicks Confirm Payment]
-    G --> H[2s processing spinner]
-    H --> I[POST /api/payments/pay]
+    G --> H["2s processing spinner"]
+    H --> I["POST /api/payments/pay"]
     I --> J{Success?}
-    J -->|Yes| K[Redirect to Dashboard<br/>with success toast]
-    J -->|No| L[Show error message<br/>"Payment declined"]
+    J -->|Yes| K["Redirect to Dashboard<br/>with success toast"]
+    J -->|No| L["Show error message<br/>Payment declined"]
 ```
 
 ### 3.4 Scheduled Background Service (Runs Every 6 Hours)
