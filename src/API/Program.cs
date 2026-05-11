@@ -22,6 +22,9 @@ builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IDebtService, MockDebtService>();
 builder.Services.AddScoped<IPaymentGateway, MockPaymentGateway>();
+builder.Services.AddScoped<IExternalPaymentService, MockExternalPaymentService>();
+builder.Services.AddHttpClient("MockBankApi")
+    .ConfigurePrimaryHttpMessageHandler(() => new MockBankMessageHandler());
 
 builder.Services.AddCors(options =>
 {
