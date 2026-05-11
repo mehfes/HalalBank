@@ -12,6 +12,11 @@ interface Plan {
   defaultBillingCycle: string
 }
 
+const SUBSCRIPTION_TYPES = [
+  'Electricity', 'Water', 'Internet', 'Gsm', 'Streaming',
+  'Music', 'Software', 'Health', 'Education', 'Other'
+]
+
 const emptyForm = { name: '', category: '', defaultPrice: '', defaultBillingCycle: 'Monthly' }
 
 export default function Discover() {
@@ -146,12 +151,16 @@ export default function Discover() {
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
-              <input
-                placeholder="Category"
+              <select
                 value={form.category}
                 onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+              >
+                <option value="">Select type...</option>
+                {SUBSCRIPTION_TYPES.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
               <input
                 type="number"
                 step="0.01"

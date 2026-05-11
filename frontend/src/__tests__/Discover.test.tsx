@@ -194,7 +194,7 @@ describe('Discover Page - Admin', () => {
       expect(screen.getByPlaceholderText('Provider Name')).toBeDefined()
     })
 
-    expect(screen.getByPlaceholderText('Category')).toBeDefined()
+    expect(screen.getByDisplayValue('Select type...')).toBeDefined()
     expect(screen.getByPlaceholderText('Price')).toBeDefined()
     expect(screen.getByText('Add Plan')).toBeDefined()
   })
@@ -209,7 +209,7 @@ describe('Discover Page - Admin', () => {
     await waitFor(() => screen.getByPlaceholderText('Provider Name'))
 
     await userEvent.type(screen.getByPlaceholderText('Provider Name'), 'New Plan')
-    await userEvent.type(screen.getByPlaceholderText('Category'), 'Health')
+    await userEvent.selectOptions(screen.getByDisplayValue('Select type...'), 'Health')
     await userEvent.type(screen.getByPlaceholderText('Price'), '29.99')
     await userEvent.click(screen.getByText('Add Plan'))
 
