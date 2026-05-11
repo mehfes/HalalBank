@@ -27,6 +27,18 @@ export default function Navbar() {
             >
               Dashboard
             </Link>
+            {user?.role === 'Customer' && (
+              <Link
+                to="/discover"
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname === '/discover'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Discover
+              </Link>
+            )}
             {user?.role === 'Admin' && (
               <Link
                 to="/admin"

@@ -34,6 +34,13 @@ export const api = {
     queryDebt: (subscriptionId: number) => request<any>(`/payments/query-debt/${subscriptionId}`, { method: 'POST' }),
     pay: (data: any) => request<any>('/payments/pay', { method: 'POST', body: JSON.stringify(data) }),
   },
+  subscriptionPlans: {
+    getAll: () => request<any[]>('/subscriptionplans'),
+    getById: (id: number) => request<any>(`/subscriptionplans/${id}`),
+    create: (data: any) => request<any>('/subscriptionplans', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => request<void>(`/subscriptionplans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => request<void>(`/subscriptionplans/${id}`, { method: 'DELETE' }),
+  },
   dashboard: {
     get: () => request<{ totalActiveSubscriptions: number; upcomingPayments: any[] }>('/dashboard'),
   },
