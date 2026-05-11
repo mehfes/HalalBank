@@ -46,6 +46,8 @@ public class SubscriptionService : ISubscriptionService
     public async Task<SubscriptionDto> CreateAsync(CreateSubscriptionDto dto)
     {
         var subscription = dto.ToEntity();
+        if (string.IsNullOrWhiteSpace(subscription.SubscriptionNumber))
+            subscription.SubscriptionNumber = $"SUB-{Random.Shared.Next(10000, 99999)}";
         var created = await _unitOfWork.Subscriptions.AddAsync(subscription);
         await _unitOfWork.SaveChangesAsync();
         return created.ToDto();

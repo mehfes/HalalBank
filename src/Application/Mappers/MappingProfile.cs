@@ -34,6 +34,7 @@ public static class MappingProfile
         {
             Id = subscription.Id,
             CustomerId = subscription.CustomerId,
+            SubscriptionNumber = subscription.SubscriptionNumber,
             ProviderName = subscription.ProviderName,
             Category = subscription.Category,
             Price = subscription.Price,
@@ -48,6 +49,7 @@ public static class MappingProfile
         return new Subscription
         {
             CustomerId = dto.CustomerId,
+            SubscriptionNumber = dto.SubscriptionNumber,
             ProviderName = dto.ProviderName,
             Category = dto.Category,
             Price = dto.Price,

@@ -16,6 +16,7 @@ interface DashboardData {
 interface Subscription {
   id: number
   customerId: number
+  subscriptionNumber: string
   providerName: string
   category: string
   price: number
@@ -120,6 +121,7 @@ function App() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-slate-500 border-b border-slate-200">
+                    <th className="pb-2 font-medium">Subscription #</th>
                     <th className="pb-2 font-medium">Provider</th>
                     <th className="pb-2 font-medium">Category</th>
                     <th className="pb-2 font-medium">Amount</th>
@@ -128,8 +130,9 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dashboard.upcomingPayments.map(sub => (
+                    {dashboard.upcomingPayments.map(sub => (
                     <tr key={sub.id} className="border-b border-slate-100 last:border-0">
+                      <td className="py-2.5 text-slate-600 font-mono text-xs">{sub.subscriptionNumber}</td>
                       <td className="py-2.5 text-slate-800">{sub.providerName}</td>
                       <td className="py-2.5 text-slate-600">{sub.category}</td>
                       <td className="py-2.5 text-slate-800 font-medium">${sub.price.toFixed(2)}</td>
@@ -176,6 +179,7 @@ function App() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-slate-500 border-b border-slate-200">
+                    <th className="pb-2 font-medium">Subscription #</th>
                     <th className="pb-2 font-medium">Provider</th>
                     <th className="pb-2 font-medium">Category</th>
                     <th className="pb-2 font-medium">Price</th>
@@ -185,8 +189,9 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {subscriptions.map(sub => (
+                    {subscriptions.map(sub => (
                     <tr key={sub.id} className="border-b border-slate-100 last:border-0">
+                      <td className="py-2.5 text-slate-600 font-mono text-xs">{sub.subscriptionNumber}</td>
                       <td className="py-2.5 text-slate-800">{sub.providerName}</td>
                       <td className="py-2.5 text-slate-600">{sub.category}</td>
                       <td className="py-2.5 text-slate-800 font-medium">${sub.price.toFixed(2)}</td>

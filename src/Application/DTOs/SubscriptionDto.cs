@@ -4,6 +4,7 @@ public class SubscriptionDto
 {
     public int Id { get; set; }
     public int CustomerId { get; set; }
+    public string SubscriptionNumber { get; set; } = string.Empty;
     public string ProviderName { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public decimal Price { get; set; }
@@ -15,6 +16,7 @@ public class SubscriptionDto
 public class CreateSubscriptionDto
 {
     public int CustomerId { get; set; }
+    public string SubscriptionNumber { get; set; } = string.Empty;
     public string ProviderName { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public decimal Price { get; set; }
@@ -24,6 +26,7 @@ public class CreateSubscriptionDto
 
 public class UpdateSubscriptionDto
 {
+    public string? SubscriptionNumber { get; set; }
     public string? ProviderName { get; set; }
     public string? Category { get; set; }
     public decimal? Price { get; set; }
