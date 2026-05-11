@@ -395,6 +395,83 @@ jobs:
 
 ---
 
+## Step 14 — Subscription Plan Entity (Service Catalog)
+
+**Prompt:** Separate Service Catalog from user Subscriptions. Create SubscriptionPlan entity + CRUD.
+
+### Domain
+- `src/Domain/Entities/SubscriptionPlan.cs` — Id, Name, Category, DefaultPrice, DefaultBillingCycle
+
+### Infrastructure
+- `SubscriptionPlanConfiguration` — Fluent API + `.HasData()` seeds 4 plans:
+  - Netflix Premium ($15.99/mo), Spotify ($9.99/mo), Gym Membership ($49.99/mo), Internet Bill ($59.99/mo)
+- `SubscriptionPlanRepository` — Standard CRUD
+- Updated `IUnitOfWork` + `UnitOfWork` with `SubscriptionPlans` property
+- Migration: `AddSubscriptionPlans`
+
+### Application
+- `SubscriptionPlanDto`, `CreateSubscriptionPlanDto`, `UpdateSubscriptionPlanDto`
+- `MappingProfile` — `ToDto()` / `ToEntity()` extensions
+- `ISubscriptionPlanService` + `SubscriptionPlanService` — Full CRUD with null guards
+
+### API
+- `SubscriptionPlansController` — `GET/POST/PUT/DELETE /api/subscriptionplans`
+- Registered `ISubscriptionPlanService` in `Program.cs`
+
+---
+
+## Step 15 — Data Isolation (customerId on AuthContext)
+
+**Prompt:** Fix Dashboard to use logged-in user's customerId. Remove the "Select Customer" dropdown.
+
+### AuthContext Changes
+- Added `customerId?: number` to `User` interface
+- `user@test.com` → `{ role: 'Customer', customerId: 1 }` (simulates John Doe)
+- `admin@test.com` → `{ role: 'Admin' }` (no customerId)
+- Tests updated to verify customerId=1 persists to localStorage
+
+### Dashboard Refactor
+- Removed customer fetch (`GET /api/customers`) and "Select Customer" dropdown entirely
+- Uses `useAuth()` to get `user.customerId`
+- Auto-fetches subscriptions via `GET /api/subscriptions/by-customer/{customerId}`
+- Dashboard cards computed locally from user's own subscriptions (active count + upcoming payments)
+- After payment check, refetches user-specific subscriptions
+- For Admin: no data shown (no customerId)
+
+### Login Page
+- Hint updated: "Try user@test.com (Customer) or admin@test.com (Admin)"
+
+---
+
+## Step 16 — Discover Page & Admin Dashboard Refactor
+
+**Prompt:** Build Discover page for Customers + Admin tabs for All Users Overview and Plan Catalog management.
+
+### Discover Page (`/discover`)
+- Fetches all `SubscriptionPlan` records from `GET /api/subscriptionplans`
+- Renders as cards: Category badge, Plan Name, Price, Billing Cycle
+- "Subscribe" button calls `POST /api/subscriptions` with logged-in user's `customerId` and plan's details
+- Success toast + redirect to `/dashboard`
+
+### Navbar
+- "Discover" link visible only when `role === 'Customer'`
+- "Admin" link remains visible only when `role === 'Admin'`
+
+### Admin Page Refactor
+- Removed placeholder stats entirely
+- Two tabbed sections:
+  - **All Users Overview** — Table of ALL subscriptions (`GET /api/subscriptions`)
+  - **Manage Plans** — Table of SubscriptionPlans + inline form to Add/Edit/Delete
+
+### API (frontend)
+- `api.subscriptionPlans` — getAll, getById, create, update, delete
+
+### Frontend Tests
+- `Discover.test.tsx` — 5 tests: loading state, renders cards, subscribe button enabled, calls create API, shows toast
+- `Admin.test.tsx` — 8 tests: default tab, displays subscriptions, switches tabs, shows form, create plan, edit mode, update plan, delete plan
+
+---
+
 ## Project File Tree (Final)
 
 ```
@@ -414,22 +491,25 @@ HalalBank/
 │   │                       IPaymentRepository.cs, IUnitOfWork.cs
 │   ├── Application/
 │   │   ├── Application.csproj
-│   │   ├── DTOs/           CustomerDto.cs, SubscriptionDto.cs, PaymentDto.cs
+│   │   ├── DTOs/           CustomerDto.cs, SubscriptionDto.cs, PaymentDto.cs,
+│   │   │                   SubscriptionPlanDto.cs
 │   │   ├── Interfaces/     ICustomerService.cs, ISubscriptionService.cs,
 │   │   │                   IPaymentService.cs, IDebtService.cs, IPaymentGateway.cs,
-│   │   │                   IExternalPaymentService.cs, IPaymentTaskService.cs
+│   │   │                   IExternalPaymentService.cs, IPaymentTaskService.cs,
+│   │   │                   INotificationService.cs, ISubscriptionPlanService.cs
 │   │   ├── Mappers/        MappingProfile.cs
 │   │   └── Services/       CustomerService.cs, SubscriptionService.cs,
-│   │                       PaymentService.cs, PaymentTaskService.cs
+│   │                       PaymentService.cs, PaymentTaskService.cs,
+│   │                       SubscriptionPlanService.cs
 │   ├── Infrastructure/
 │   │   ├── Infrastructure.csproj
 │   │   ├── Data/
 │   │   │   ├── AppDbContext.cs
 │   │   │   └── Configurations/ CustomerConfiguration.cs, SubscriptionConfiguration.cs,
-│   │   │                       PaymentConfiguration.cs
-│   │   ├── Migrations/     InitialCreate, SeedData
+│   │   │                       PaymentConfiguration.cs, SubscriptionPlanConfiguration.cs
+│   │   ├── Migrations/     InitialCreate, SeedData, AddSubscriptionNumber, AddSubscriptionPlans
 │   │   ├── Repositories/   CustomerRepository.cs, SubscriptionRepository.cs,
-│   │   │                   PaymentRepository.cs, UnitOfWork.cs
+│   │   │                   PaymentRepository.cs, SubscriptionPlanRepository.cs, UnitOfWork.cs
 │   │   └── ExternalServices/ MockDebtService.cs, MockPaymentGateway.cs,
 │   │                        MockExternalPaymentService.cs, MockBankMessageHandler.cs,
 │   │                        MockNotificationService.cs
@@ -439,18 +519,20 @@ HalalBank/
 │       ├── appsettings.json, appsettings.Development.json
 │       ├── Controllers/    CustomersController.cs, SubscriptionsController.cs,
 │       │                   PaymentsController.cs, DashboardController.cs,
-│   │                   PaymentTaskController.cs (process-overdue + send-reminders)
+│       │                   PaymentTaskController.cs (process-overdue + send-reminders),
+│       │                   SubscriptionPlansController.cs
 │       └── Middleware/     ExceptionHandlingMiddleware.cs
 ├── frontend/
 │   ├── package.json, tsconfig.json, vite.config.ts, index.html
 │   ├── public/
 │   └── src/
 │       ├── index.css, main.tsx, App.tsx (router: / → /login → /register → /dashboard → /admin → /payment-gateway/:id)
-│       ├── contexts/   AuthContext.tsx (RBAC: Admin/Customer roles, localStorage persistence)
-│       ├── __tests__/  AuthContext.test.tsx (5 Vitest tests)
-│       ├── services/api.ts
-│       ├── components/  Navbar.tsx (conditional Admin link + Logout), ProtectedRoute.tsx
-│       └── pages/  Login.tsx, Register.tsx, Dashboard.tsx, Admin.tsx, PaymentGateway.tsx
+│       ├── contexts/   AuthContext.tsx (RBAC: Admin/Customer roles + customerId, localStorage persistence)
+│       ├── __tests__/  AuthContext.test.tsx (6 tests), Discover.test.tsx (5 tests), Admin.test.tsx (8 tests)
+│       ├── services/api.ts (+ subscriptionPlans API)
+│       ├── components/  Navbar.tsx (conditional Admin + Discover links, Logout), ProtectedRoute.tsx
+│       └── pages/  Login.tsx, Register.tsx, Dashboard.tsx (customerId-driven), Admin.tsx (tabs: users + plans),
+│                   Discover.tsx (plan cards + Subscribe), PaymentGateway.tsx
 └── tests/
     └── Application.Tests/
         ├── Application.Tests.csproj
@@ -488,6 +570,9 @@ curl -X POST http://localhost:5000/api/payment-task/process-overdue
 
 # Send email reminders
 curl -X POST http://localhost:5000/api/payment-task/send-reminders
+
+# Subscription Plans CRUD
+curl http://localhost:5000/api/subscriptionplans
 
 # Payment Gateway UI (open in browser after frontend starts)
 # Navigate to http://localhost:3000/payment-gateway/1
@@ -637,30 +722,35 @@ curl http://localhost:5000/api/dashboard
 #     }
 ```
 
-**Frontend:** Dashboard page shows two cards:
-- **Total Active Subscriptions** — count from `GET /api/dashboard`
-- **Upcoming Payments** — count + table with Provider, Category, Amount, Due Date, Billing Cycle
+**Frontend:** Dashboard auto-fetches subscriptions for the logged-in user:
+- **Total Active Subscriptions** — computed from user's own subscriptions
+- **Upcoming Payments** — computed from user's own subscriptions (next 7 days)
+- **My Subscriptions** table — shows only the logged-in user's subscriptions
+- No customer dropdown — data isolated per logged-in Customer
 
 **Frontend Routes & Navigation (react-router-dom):**
 | Route | Page | Access | Description |
 |-------|------|--------|-------------|
 | `/` | Redirects to `/login` | Public | Default entry |
-| `/login` | Login | Public | Sign in — `admin@test.com` → Admin role, any other → Customer role |
+| `/login` | Login | Public | Sign in — `user@test.com` → Customer + customerId=1; `admin@test.com` → Admin |
 | `/register` | Register | Public | Register form → login + redirect to dashboard |
-| `/dashboard` | Dashboard | Any logged-in user | Full dashboard with cards, tables, payment check |
-| `/admin` | Admin | **Admin only** | Protected by `<AdminRoute>` — Customer users redirected to `/dashboard` |
+| `/dashboard` | Dashboard | Any logged-in user | Auto-fetches subscriptions for logged-in user's customerId. Cards show user's own data |
+| `/discover` | Discover | Any logged-in user | Plan cards with Subscribe button. Uses customerId from auth |
+| `/admin` | Admin | **Admin only** | Protected by `<AdminRoute>`. Tabs: All Users Overview + Manage Plans |
 | `/payment-gateway/:subscriptionId` | Payment Gateway | Any logged-in user | Bank-like payment interface with debt query + confirm |
 
 **Navbar:**
 - "Dashboard" link — visible to all users
+- "Discover" link — **only visible** when `user.role === 'Customer'`
 - "Admin" link — **only visible** when `user.role === 'Admin'`
 - Email display (right side) — shows current user's email
 - "Logout" button — clears AuthContext + localStorage, redirects to `/login`
 
 **Role-Based Access Control (RBAC):**
-- `AuthContext` (`src/contexts/AuthContext.tsx`) manages `{ email, role }` state
+- `AuthContext` (`src/contexts/AuthContext.tsx`) manages `{ email, role, customerId? }` state
 - State persisted to `localStorage` under key `halalbank_user`
-- Login: `admin@test.com` → role=`Admin`; any other email → role=`Customer`
+- `user@test.com` → role=`Customer`, **customerId=`1`** (drives Dashboard data isolation)
+- `admin@test.com` → role=`Admin` (no customerId — sees system-wide data)
 - `ProtectedRoute.tsx` (`<AdminRoute>`) wraps `/admin`: if user is not Admin, redirects to `/dashboard`
 - Logout clears context + localStorage
 
@@ -711,21 +801,23 @@ curl -X POST http://localhost:5000/api/payment-task/send-reminders
 
 ---
 
-### 8c. Role-Based Access Control (RBAC) — Mock Auth
+### 8c. Role-Based Access Control (RBAC) + Data Isolation
 
 **How to test — step by step:**
 
 1. Start backend + frontend (`cd src/API && dotnet run` + `cd frontend && npm run dev`)
 2. Open `http://localhost:3000` → redirected to `/login`
-3. **Test Customer access:**
-   - Enter `user@example.com` → click Sign In → redirected to `/dashboard`
-   - Navbar shows: Dashboard link, email, Logout button — **no Admin link**
+3. **Test Customer access (data isolation):**
+   - Enter `user@test.com` → click Sign In → redirected to `/dashboard`
+   - Navbar shows: Dashboard link, **Discover link**, email, Logout button — **no Admin link**
+   - Dashboard cards show only **John Doe's** subscriptions (Netflix, Spotify — 2 active, 2 upcoming)
+   - "My Subscriptions" table shows only John Doe's 2 subscriptions
    - Manually navigate to `http://localhost:3000/admin` → redirected back to `/dashboard`
-4. **Test Admin access:**
+4. **Test Admin access (system-wide view):**
    - Click Logout → redirected to `/login`
    - Enter `admin@test.com` → click Sign In → redirected to `/dashboard`
-   - Navbar shows: Dashboard link, **Admin link**, email, Logout button
-   - Click "Admin" → see Admin page with System Status, Total Mock Revenue ($47,892), etc.
+   - Navbar shows: Dashboard link, **Admin link**, email, Logout button — **no Discover link**
+   - Click "Admin" → see **All Users Overview** tab with ALL 5 subscriptions across all customers
 5. **Test persistence:**
    - Refresh the page at `/admin` → still on Admin page (state persisted in localStorage)
    - Refresh the page at `/dashboard` → still on Dashboard
@@ -734,21 +826,101 @@ curl -X POST http://localhost:5000/api/payment-task/send-reminders
 
 ---
 
-### 8d. Frontend Unit Tests (Vitest)
+### 8d. Subscription Plans API (Backend)
+
+```bash
+# List all plans (4 seeded)
+curl http://localhost:5000/api/subscriptionplans
+# → 200 + [{"id":1,"name":"Netflix Premium","category":"Streaming","defaultPrice":15.99,...}, ...]
+
+# Get by id
+curl http://localhost:5000/api/subscriptionplans/1
+# → 200 + {"id":1,"name":"Netflix Premium",...}
+
+# Create new plan
+curl -X POST http://localhost:5000/api/subscriptionplans \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Disney+","category":"Streaming","defaultPrice":12.99,"defaultBillingCycle":"Monthly"}'
+# → 201 Created
+
+# Update plan
+curl -X PUT http://localhost:5000/api/subscriptionplans/1 \
+  -H "Content-Type: application/json" \
+  -d '{"defaultPrice":17.99}'
+# → 204 No Content
+
+# Delete plan
+curl -X DELETE http://localhost:5000/api/subscriptionplans/1
+# → 204 No Content
+```
+
+---
+
+### 8e. Discover Page — Subscribe To a Plan
+
+**Route:** `/discover`
+
+**How to test (Customer):**
+1. Login as `user@test.com` → Navbar shows **Discover** link
+2. Click **Discover** → see 4 plan cards:
+   - Netflix Premium ($15.99/mo, Streaming)
+   - Spotify ($9.99/mo, Music)
+   - Gym Membership ($49.99/mo, Health)
+   - Internet Bill ($59.99/mo, Utilities)
+3. Click **Subscribe** on any card → green toast "Subscribed to {Plan}!" → auto-redirects to Dashboard
+4. Dashboard now shows the new subscription in "My Subscriptions" table
+5. **Admin test:** Login as `admin@test.com` → Navbar has **no** Discover link → navigate to `/discover` → page loads but Subscribe buttons show "Sign in as Customer" (disabled)
+
+---
+
+### 8f. Admin Dashboard — Tabs & Plan Management
+
+**Route:** `/admin` (Admin only)
+
+**How to test:**
+1. Login as `admin@test.com` → click **Admin** in Navbar
+2. **All Users Overview** tab (default):
+   - Shows table with ALL subscriptions across all customers
+   - Columns: Customer ID, Subscription #, Provider, Category, Price, Billing, Next Payment, Status
+3. Click **Manage Plans** tab:
+   - Shows table of seeded plans with Edit/Delete buttons per row
+   - Shows **Add New Plan** form at top
+4. **Add a plan:** Fill in Name, Category, Price → click "Add Plan" → plan appears in table
+5. **Edit a plan:** Click **Edit** on any row → form fills with plan data → form title changes to "Edit Plan" → modify fields → click "Update Plan" → table updates
+6. **Cancel edit:** Click **Cancel** → form resets to Add mode
+7. **Delete a plan:** Click **Delete** on any row → plan removed from table
+
+---
+
+### 8g. Frontend Unit Tests (Vitest)
 
 ```bash
 cd frontend
 npm test
-# → 5/5 Passing
+# → 19/19 Passing
 ```
 
 | Test | File | What It Covers |
 |------|------|---------------|
 | Starts with null user | AuthContext.test.tsx | Initial state is null |
-| admin@test.com → Admin | AuthContext.test.tsx | Role detection logic |
-| any other email → Customer | AuthContext.test.tsx | Role detection logic |
-| Persists to localStorage | AuthContext.test.tsx | State survives refresh |
+| admin@test.com → Admin (no customerId) | AuthContext.test.tsx | Admin role, no customerId |
+| user@example.com → Customer (customerId=1) | AuthContext.test.tsx | Customer role + customerId set |
+| Persists admin to localStorage | AuthContext.test.tsx | Admin state survives refresh |
+| Persists customerId to localStorage | AuthContext.test.tsx | Customer with customerId persists |
 | Clears on logout | AuthContext.test.tsx | Logout clears context + storage |
+| Shows loading state | Discover.test.tsx | "Loading plans..." shown initially |
+| Renders plan cards | Discover.test.tsx | Plans displayed with name, category, price |
+| Subscribe button enabled for Customer | Discover.test.tsx | Buttons not disabled for Customer role |
+| Calls create with correct customerId | Discover.test.tsx | POST /api/subscriptions called with customerId=1 and plan data |
+| Shows toast after subscribe | Discover.test.tsx | "Subscribed to {Plan}!" appears |
+| Default tab shows All Users Overview | Admin.test.tsx | "All Subscriptions" heading rendered |
+| Displays all subscriptions | Admin.test.tsx | All 5 subs from all customers shown |
+| Switches to Manage Plans tab | Admin.test.tsx | Loads and displays plan catalog |
+| Add New Plan form visible | Admin.test.tsx | Form inputs (Name, Category, Price) visible |
+| Creates plan via API | Admin.test.tsx | api.subscriptionPlans.create called with correct data |
+| Edit button switches to edit mode | Admin.test.tsx | Form fills with plan data, title changes to "Edit Plan" |
+| Updates plan via API | Admin.test.tsx | api.subscriptionPlans.update called |
+| Deletes plan via API | Admin.test.tsx | api.subscriptionPlans.delete called with correct id |
 
 ---
 
@@ -785,7 +957,7 @@ dotnet test
 # Frontend tests
 cd frontend
 npm test
-# → 5/5 Passing
+# → 19/19 Passing
 ```
 
 **Backend tests (xUnit + Moq + FluentAssertions):**
@@ -811,12 +983,26 @@ npm test
 | Test | File | What It Covers |
 |------|------|---------------|
 | Starts with null user | AuthContext.test.tsx | Initial state is null |
-| admin@test.com → Admin | AuthContext.test.tsx | Role detection: correct role assigned |
-| any other email → Customer | AuthContext.test.tsx | Role detection: non-admin email |
-| Persists to localStorage | AuthContext.test.tsx | State survives page refresh |
+| admin@test.com → Admin (no customerId) | AuthContext.test.tsx | Admin role, no customerId |
+| user@example.com → Customer (customerId=1) | AuthContext.test.tsx | Customer role + customerId set |
+| Persists admin to localStorage | AuthContext.test.tsx | Admin state survives refresh |
+| Persists customerId to localStorage | AuthContext.test.tsx | Customer with customerId persists |
 | Clears on logout | AuthContext.test.tsx | Logout clears context + storage |
+| Shows loading state | Discover.test.tsx | "Loading plans..." shown initially |
+| Renders plan cards | Discover.test.tsx | Plans displayed with name, category, price |
+| Subscribe button enabled | Discover.test.tsx | Buttons not disabled for Customer role |
+| Calls create with correct data | Discover.test.tsx | POST /api/subscriptions with customerId=1 + plan data |
+| Shows toast after subscribe | Discover.test.tsx | "Subscribed to {Plan}!" appears |
+| Default tab: All Users Overview | Admin.test.tsx | "All Subscriptions" heading shown |
+| Displays all subscriptions | Admin.test.tsx | All subs across all customers in table |
+| Switches to Manage Plans tab | Admin.test.tsx | Plan catalog loaded and displayed |
+| Add New Plan form visible | Admin.test.tsx | Form inputs (Name, Category, Price) visible |
+| Creates plan via API | Admin.test.tsx | api.subscriptionPlans.create called correctly |
+| Edit switches to edit mode | Admin.test.tsx | Form fills with plan data, title changes |
+| Updates plan via API | Admin.test.tsx | api.subscriptionPlans.update called |
+| Deletes plan via API | Admin.test.tsx | api.subscriptionPlans.delete called with id |
 
-**Total: 18 tests (13 backend + 5 frontend)**
+**Total: 32 tests (13 backend + 19 frontend)**
 
 ---
 
@@ -859,8 +1045,12 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 - ✅ .NET 8 + React 18 + TypeScript + Vite
 - ✅ SQL Server with EF Core (entity configurations, migrations)
 - ✅ Seed data for testing
-- ✅ Unit tests (13 backend xUnit + 5 frontend Vitest)
+- ✅ Unit tests (13 backend xUnit + 19 frontend Vitest)
 - ✅ Role-Based Access Control (mock auth: Admin/Customer roles, protected routes, conditional navbar)
+- ✅ Service Catalog (SubscriptionPlan entity, CRUD API, seed data)
+- ✅ Data Isolation (customerId on AuthContext, per-user dashboard)
+- ✅ Discover page (plan cards + Subscribe button with auto-redirect)
+- ✅ Admin tab management (All Users Overview + Plan Catalog CRUD)
 - ✅ CI pipeline (GitHub Actions)
 - ✅ AI Usage documented in README.md
 
@@ -876,4 +1066,4 @@ This project was developed entirely with AI assistance. The AI was used for:
 - **Testing** — generating xUnit test cases with Moq mocks covering success, failure, skip, and error scenarios
 - **Configuration** — EF Core setup, migration commands, Tailwind CSS integration, GitHub Actions CI
 
-All AI-generated output was reviewed, adapted, and verified via build (0 errors, 0 warnings) and test runs (18/18 passing — 13 backend xUnit + 5 frontend Vitest) before inclusion.
+All AI-generated output was reviewed, adapted, and verified via build (0 errors, 0 warnings) and test runs (32/32 passing — 13 backend xUnit + 19 frontend Vitest) before inclusion.
