@@ -401,27 +401,31 @@ HalalBank/
 │   │   ├── Repositories/   CustomerRepository.cs, SubscriptionRepository.cs,
 │   │   │                   PaymentRepository.cs, UnitOfWork.cs
 │   │   └── ExternalServices/ MockDebtService.cs, MockPaymentGateway.cs,
-│   │                        MockExternalPaymentService.cs, MockBankMessageHandler.cs
+│   │                        MockExternalPaymentService.cs, MockBankMessageHandler.cs,
+│   │                        MockNotificationService.cs
 │   └── API/
 │       ├── API.csproj
 │       ├── Program.cs
 │       ├── appsettings.json, appsettings.Development.json
 │       ├── Controllers/    CustomersController.cs, SubscriptionsController.cs,
 │       │                   PaymentsController.cs, DashboardController.cs,
-│       │                   PaymentTaskController.cs
+│   │                   PaymentTaskController.cs (process-overdue + send-reminders)
 │       └── Middleware/     ExceptionHandlingMiddleware.cs
 ├── frontend/
 │   ├── package.json, tsconfig.json, vite.config.ts, index.html
 │   ├── public/
 │   └── src/
-│       ├── index.css, main.tsx, App.tsx
+│       ├── index.css, main.tsx, App.tsx (router: / → /login → /register → /dashboard → /admin → /payment-gateway/:id)
 │       ├── services/api.ts
-│       ├── components/
-│       └── pages/
+│       ├── components/  Navbar.tsx (Dashboard + Admin nav links)
+│       └── pages/  Login.tsx, Register.tsx, Dashboard.tsx, Admin.tsx, PaymentGateway.tsx
 └── tests/
     └── Application.Tests/
         ├── Application.Tests.csproj
-        └── PaymentTaskServiceTests.cs
+        ├── PaymentTaskServiceTests.cs (6 tests)
+        ├── SubscriptionServiceTests.cs (2 tests)
+        ├── MockNotificationServiceTests.cs (2 tests)
+        └── ReminderTaskTests.cs (3 tests)
 ```
 
 ---
@@ -445,6 +449,12 @@ dotnet ef database update --project src\Infrastructure --startup-project src\API
 
 # Trigger payment check
 curl -X POST http://localhost:5000/api/payment-task/process-overdue
+
+# Send email reminders
+curl -X POST http://localhost:5000/api/payment-task/send-reminders
+
+# Payment Gateway UI (open in browser after frontend starts)
+# Navigate to http://localhost:3000/payment-gateway/1
 ```
 
 ---
@@ -595,6 +605,18 @@ curl http://localhost:5000/api/dashboard
 - **Total Active Subscriptions** — count from `GET /api/dashboard`
 - **Upcoming Payments** — count + table with Provider, Category, Amount, Due Date, Billing Cycle
 
+**Frontend Routes & Navigation (react-router-dom):**
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | Redirects to `/login` | Default entry |
+| `/login` | Login | Dummy sign-in form → navigates to `/dashboard` |
+| `/register` | Register | Dummy registration form → navigates to `/dashboard` |
+| `/dashboard` | Dashboard | Full dashboard with cards, tables, payment check |
+| `/admin` | Admin | Placeholder admin page (Navbar visible) |
+| `/payment-gateway/:subscriptionId` | Payment Gateway | Bank-like payment interface with debt query + confirm |
+
+**Navbar:** Visible on Dashboard and Admin pages. Links: Dashboard, Admin (active link highlighted in emerald).
+
 ---
 
 ### 7. Subscription-Based Payment History
@@ -606,6 +628,47 @@ curl http://localhost:5000/api/payments/by-subscription/1
 curl http://localhost:5000/api/payments
 # → 200 + all payments across all subscriptions
 ```
+
+---
+
+### 8a. Email Reminder — Send Reminders
+
+```bash
+curl -X POST http://localhost:5000/api/payment-task/send-reminders
+# → 200 + {"remindersSent": 5}
+```
+
+- Checks all **Active** subscriptions where `NextPaymentDate` is within the next 3 days
+- For each, calls `INotificationService.SendReminderEmailAsync()` which logs to console via `ILogger`
+- Returns count of reminders sent
+
+**Frontend:** No dedicated UI — verify in backend terminal output for log lines like:
+```
+📧 REMINDER EMAIL SENT --- To: john.doe@email.com | Subject: Upcoming Payment Reminder for Netflix ...
+```
+
+---
+
+### 8b. Payment Gateway UI (React)
+
+**Route:** `/payment-gateway/:subscriptionId`
+
+**How to test:**
+1. Go to Dashboard → select a customer → click **Pay** on any subscription
+2. You're redirected to a bank-like page with dark gradient background
+3. It fetches debt info via `POST /api/payments/query-debt/{subscriptionId}`
+4. Displays: Subscription ID, Amount Due, Due Date, Period
+5. Click **Confirm Payment — $XXX.XX** → 2-second spinner appears
+6. Calls `POST /api/payments/pay` → on success redirects to Dashboard with green toast
+7. On payment failure, error message shown on the gateway page
+
+---
+
+### 8c. Subscription Number
+
+- Auto-generated as `SUB-XXXXX` (random 5 digits) when creating a new subscription without one
+- Preserved if explicitly provided in the request body
+- Displayed in all subscription tables (frontend and API responses)
 
 ---
 
@@ -628,17 +691,24 @@ All use randomness → different results on each call.
 
 ```bash
 dotnet test
-# → 6/6 Passing
+# → 13/13 Passing
 ```
 
-| Test | What It Covers |
-|------|---------------|
-| Success: debt + payment | Full happy path: payment created, date rolled +1 month |
-| Failure: payment fails | External returns false → no payment record, failure counted |
-| Skip: no debt | Amount = 0 → skipped, no external payment called |
-| Error: exception thrown | External throws → caught gracefully, failure counted |
-| Yearly billing | Date rolled +1 year instead of +1 month |
-| Empty overdue list | No subscriptions → all counts zero, no calls made |
+| Test | File | What It Covers |
+|------|------|---------------|
+| Success: debt + payment | PaymentTaskServiceTests | Full happy path: payment created, date rolled +1 month |
+| Failure: payment fails | PaymentTaskServiceTests | External returns false → no payment record, failure counted |
+| Skip: no debt | PaymentTaskServiceTests | Amount = 0 → skipped, no external payment called |
+| Error: exception thrown | PaymentTaskServiceTests | External throws → caught gracefully, failure counted |
+| Yearly billing | PaymentTaskServiceTests | Date rolled +1 year instead of +1 month |
+| Empty overdue list | PaymentTaskServiceTests | No subscriptions → all counts zero, no calls made |
+| SubscriptionNumber auto-generated | SubscriptionServiceTests | When no number provided → generates `SUB-XXXXX` |
+| SubscriptionNumber preserved | SubscriptionServiceTests | When number provided → saved as-is |
+| Notification does not throw | MockNotificationServiceTests | `SendReminderEmailAsync` completes without exception |
+| Notification logs at Info | MockNotificationServiceTests | `LogInformation` is called exactly once |
+| Reminders for 3 upcoming subs | ReminderTaskTests | 3 subs due within 3 days → 3 reminders sent |
+| Reminders when none upcoming | ReminderTaskTests | No upcoming → 0 reminders sent |
+| Reminders filter by date range | ReminderTaskTests | Subs outside 3-day window are excluded |
 
 ---
 
@@ -658,10 +728,10 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 | Requirement | Status | Explanation |
 |-------------|--------|-------------|
 | **Ödeme dönemi (Period) on Payment** | ❌ Not implemented | Original spec had `Period` field on Payment. Removed per later user simplification of Payment entity to `{Id, SubscriptionId, Amount, PaymentDate, Status}`. |
-| **Abonelik numarası (Subscription Number)** | ❌ Not on entity | Original spec had a subscription number field. Removed per user re-specification which replaced it with `Category`, `Price`, `BillingCycle`, `NextPaymentDate`. |
+| **Abonelik numarası (Subscription Number)** | ✅ Implemented | Added to Subscription entity, DTOs, seed data (`SUB-48291` etc.), and auto-generated on create |
 | **Abonelik türü (Type) enum — Electricity, Water etc.** | ❌ Replaced with `Category` (string) | The user later re-specified the Subscription entity and `Category` is a free-text field instead of a constrained enum. |
-| **Hatırlatma Mekanizması / Reminder endpoint** | 🟡 Partial | Original spec describes a reminder mechanism (list subs needing reminders where payment is due and unpaid). The `PaymentTaskService` processes overdue subs but there is no dedicated "list reminders" endpoint. The Dashboard's "Upcoming Payments" section partially covers this. *(Optional per spec — background job not required)* |
-| **Bildirim Servisi / Notification Service (Email/SMS)** | ❌ Not implemented | *(Optional per spec)* |
+| **Hatırlatma Mekanizması / Reminder endpoint** | ✅ Implemented | `POST /api/payment-task/send-reminders` sends email reminders for subscriptions due within 3 days |
+| **Bildirim Servisi / Notification Service (Email/SMS)** | ✅ Implemented (mock) | `MockNotificationService` logs email content via `ILogger` — simulates external email/SMS service |
 | **ER Diagram** | ❌ Not created | Required per "Sistem Tasarım Dokümanları" section |
 | **API Endpoint List (standalone doc)** | 🟡 Partial | Endpoints exist and are documented in this file, but no separate API specification document was produced |
 | **Flow Diagram (debt→payment→reminder)** | ❌ Not created | Required per "Sistem Tasarım Dokümanları" section |
@@ -673,7 +743,8 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 - ✅ Payments: Create / Read
 - ✅ Debt Query via mock 3rd party service
 - ✅ Payment Processing via mock service
-- ✅ At least 2 different mock external services (actually 4)
+- ✅ At least 2 different mock external services (actually 5: MockDebtService, MockPaymentGateway, MockExternalPaymentService, MockBankMessageHandler, MockNotificationService)
+- ✅ Subscription Number on Subscription entity + seed data
 - ✅ One Customer → Many Subscriptions → Many Payments (EF Core relationships with cascade delete)
 - ✅ RESTful API design (proper HTTP verbs, status codes)
 - ✅ Clean Architecture (Domain, Application, Infrastructure, API)
@@ -696,4 +767,4 @@ This project was developed entirely with AI assistance. The AI was used for:
 - **Testing** — generating xUnit test cases with Moq mocks covering success, failure, skip, and error scenarios
 - **Configuration** — EF Core setup, migration commands, Tailwind CSS integration, GitHub Actions CI
 
-All AI-generated output was reviewed, adapted, and verified via build (0 errors, 0 warnings) and test runs (6/6 passing) before inclusion.
+All AI-generated output was reviewed, adapted, and verified via build (0 errors, 0 warnings) and test runs (13/13 passing) before inclusion.
