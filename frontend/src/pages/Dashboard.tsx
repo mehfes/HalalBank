@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../services/api'
 import Navbar from '../components/Navbar'
 
@@ -35,6 +36,9 @@ interface PaymentTaskResult {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [showToast, setShowToast] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | ''>('')
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
@@ -43,6 +47,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [taskLoading, setTaskLoading] = useState(false)
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(false)
+
+  useEffect(() => {
+    if (location.state?.paymentSuccess) {
+      setShowToast(true)
+      setTimeout(() => setShowToast(false), 4000)
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
 
   useEffect(() => {
     Promise.all([
@@ -97,6 +109,11 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {showToast && (
+        <div className="fixed top-4 right-4 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium animate-slide-in">
+          Payment completed successfully!
+        </div>
+      )}
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -123,6 +140,7 @@ export default function Dashboard() {
                     <th className="pb-2 font-medium">Amount</th>
                     <th className="pb-2 font-medium">Due Date</th>
                     <th className="pb-2 font-medium">Billing</th>
+                    <th className="pb-2 font-medium"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -134,6 +152,14 @@ export default function Dashboard() {
                       <td className="py-2.5 text-slate-800 font-medium">${sub.price.toFixed(2)}</td>
                       <td className="py-2.5 text-amber-700">{formatDate(sub.nextPaymentDate)}</td>
                       <td className="py-2.5 text-slate-600">{sub.billingCycle}</td>
+                      <td className="py-2.5">
+                        <button
+                          onClick={() => navigate(`/payment-gateway/${sub.id}`)}
+                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                        >
+                          Pay
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -181,6 +207,7 @@ export default function Dashboard() {
                     <th className="pb-2 font-medium">Billing</th>
                     <th className="pb-2 font-medium">Next Payment</th>
                     <th className="pb-2 font-medium">Status</th>
+                    <th className="pb-2 font-medium"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -198,6 +225,14 @@ export default function Dashboard() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sub.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                           {sub.status}
                         </span>
+                      </td>
+                      <td className="py-2.5">
+                        <button
+                          onClick={() => navigate(`/payment-gateway/${sub.id}`)}
+                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                        >
+                          Pay
+                        </button>
                       </td>
                     </tr>
                   ))}
