@@ -1,0 +1,33 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.csproj.user
+*.dbmdl
+*.jfm
+
+# Node / React
+node_modules/
+dist/
+build/
+*.js.map
+*.css.map
+*.tsbuildinfo
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Secrets
+appsettings.Development.json
+*.local.json
+appsettings.Local.json
+*.env
