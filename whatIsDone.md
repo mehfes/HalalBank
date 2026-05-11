@@ -505,6 +505,7 @@ HalalBank/
 ├── HalalBank.sln
 ├── ProjectDescription.md
 ├── README.md
+├── SYSTEM_DESIGN.md
 ├── whatIsDone.md
 ├── src/
 │   ├── Domain/
@@ -1063,9 +1064,9 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 | **Abonelik türü (Type) enum — Electricity, Water etc.** | ❌ Replaced with `Category` (string) | The user later re-specified the Subscription entity and `Category` is a free-text field instead of a constrained enum. |
 | **Hatırlatma Mekanizması / Reminder endpoint** | ✅ Implemented | `POST /api/payment-task/send-reminders` sends email reminders for subscriptions due within 3 days |
 | **Bildirim Servisi / Notification Service (Email/SMS)** | ✅ Implemented (SMTP) | `EmailNotificationService` sends real HTML emails via SMTP (configurable in user-secrets). Falls back to console log if SMTP not configured. |
-| **ER Diagram** | ❌ Not created | Required per "Sistem Tasarım Dokümanları" section |
-| **API Endpoint List (standalone doc)** | 🟡 Partial | Endpoints exist and are documented in this file, but no separate API specification document was produced |
-| **Flow Diagram (debt→payment→reminder)** | ❌ Not created | Required per "Sistem Tasarım Dokümanları" section |
+| **ER Diagram** | ✅ Created | See `SYSTEM_DESIGN.md` — Mermaid ER diagram with all entities, relationships, keys, and cascade rules |
+| **API Endpoint List (standalone doc)** | ✅ Created | See `SYSTEM_DESIGN.md` — Complete endpoint reference with methods, paths, DTOs, and response formats |
+| **Flow Diagram (debt→payment→reminder)** | ✅ Created | See `SYSTEM_DESIGN.md` — Mermaid flowcharts for overdue processing, email reminders, user payment flow, and background scheduler |
 
 ### All other requirements are covered:
 
