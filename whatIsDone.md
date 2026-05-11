@@ -361,7 +361,37 @@ jobs:
       - run: dotnet restore
       - run: dotnet build --no-restore
       - run: dotnet test --no-build --verbosity normal
+# (frontend tests can be added with: cd frontend && npm test)
 ```
+
+---
+
+## Step 13 — Role-Based Access Control (Mock Auth)
+
+**Prompt:** Add RBAC via React Context: AuthContext, role-based Navbar, ProtectedRoute, Admin stats.
+
+### AuthContext
+- `src/contexts/AuthContext.tsx` — provides `{ user, login, logout }` via React Context
+- Persists to `localStorage` under key `halalbank_user`
+- `login(email)`: `admin@test.com` → role=`Admin`; any other email → role=`Customer`
+- `logout()`: clears state + localStorage
+
+### ProtectedRoute
+- `src/components/ProtectedRoute.tsx` — `<AdminRoute>` wrapper
+- If user is not Admin → redirects to `/dashboard`
+- Wraps `/admin` route in `App.tsx`
+
+### Navbar Changes
+- "Admin" link only renders when `user.role === 'Admin'`
+- Shows current user email
+- Logout button clears context + redirects to `/login`
+
+### Admin Page
+- Placeholder stats: System Status (Operational), Total Mock Revenue ($47,892), Registered Users (3), System Overview table
+
+### Frontend Tests (Vitest)
+- `src/__tests__/AuthContext.test.tsx` — 5 tests covering login/logout/role detection/persistence
+- Uses Vitest + happy-dom + @testing-library/react
 
 ---
 
@@ -416,8 +446,10 @@ HalalBank/
 │   ├── public/
 │   └── src/
 │       ├── index.css, main.tsx, App.tsx (router: / → /login → /register → /dashboard → /admin → /payment-gateway/:id)
+│       ├── contexts/   AuthContext.tsx (RBAC: Admin/Customer roles, localStorage persistence)
+│       ├── __tests__/  AuthContext.test.tsx (5 Vitest tests)
 │       ├── services/api.ts
-│       ├── components/  Navbar.tsx (Dashboard + Admin nav links)
+│       ├── components/  Navbar.tsx (conditional Admin link + Logout), ProtectedRoute.tsx
 │       └── pages/  Login.tsx, Register.tsx, Dashboard.tsx, Admin.tsx, PaymentGateway.tsx
 └── tests/
     └── Application.Tests/
@@ -441,8 +473,12 @@ dotnet run
 cd frontend
 npm run dev
 
-# Tests
+# Backend tests
 dotnet test
+
+# Frontend tests
+cd frontend
+npm test
 
 # Database migration
 dotnet ef database update --project src\Infrastructure --startup-project src\API
@@ -606,16 +642,27 @@ curl http://localhost:5000/api/dashboard
 - **Upcoming Payments** — count + table with Provider, Category, Amount, Due Date, Billing Cycle
 
 **Frontend Routes & Navigation (react-router-dom):**
-| Route | Page | Description |
-|-------|------|-------------|
-| `/` | Redirects to `/login` | Default entry |
-| `/login` | Login | Dummy sign-in form → navigates to `/dashboard` |
-| `/register` | Register | Dummy registration form → navigates to `/dashboard` |
-| `/dashboard` | Dashboard | Full dashboard with cards, tables, payment check |
-| `/admin` | Admin | Placeholder admin page (Navbar visible) |
-| `/payment-gateway/:subscriptionId` | Payment Gateway | Bank-like payment interface with debt query + confirm |
+| Route | Page | Access | Description |
+|-------|------|--------|-------------|
+| `/` | Redirects to `/login` | Public | Default entry |
+| `/login` | Login | Public | Sign in — `admin@test.com` → Admin role, any other → Customer role |
+| `/register` | Register | Public | Register form → login + redirect to dashboard |
+| `/dashboard` | Dashboard | Any logged-in user | Full dashboard with cards, tables, payment check |
+| `/admin` | Admin | **Admin only** | Protected by `<AdminRoute>` — Customer users redirected to `/dashboard` |
+| `/payment-gateway/:subscriptionId` | Payment Gateway | Any logged-in user | Bank-like payment interface with debt query + confirm |
 
-**Navbar:** Visible on Dashboard and Admin pages. Links: Dashboard, Admin (active link highlighted in emerald).
+**Navbar:**
+- "Dashboard" link — visible to all users
+- "Admin" link — **only visible** when `user.role === 'Admin'`
+- Email display (right side) — shows current user's email
+- "Logout" button — clears AuthContext + localStorage, redirects to `/login`
+
+**Role-Based Access Control (RBAC):**
+- `AuthContext` (`src/contexts/AuthContext.tsx`) manages `{ email, role }` state
+- State persisted to `localStorage` under key `halalbank_user`
+- Login: `admin@test.com` → role=`Admin`; any other email → role=`Customer`
+- `ProtectedRoute.tsx` (`<AdminRoute>`) wraps `/admin`: if user is not Admin, redirects to `/dashboard`
+- Logout clears context + localStorage
 
 ---
 
@@ -664,6 +711,47 @@ curl -X POST http://localhost:5000/api/payment-task/send-reminders
 
 ---
 
+### 8c. Role-Based Access Control (RBAC) — Mock Auth
+
+**How to test — step by step:**
+
+1. Start backend + frontend (`cd src/API && dotnet run` + `cd frontend && npm run dev`)
+2. Open `http://localhost:3000` → redirected to `/login`
+3. **Test Customer access:**
+   - Enter `user@example.com` → click Sign In → redirected to `/dashboard`
+   - Navbar shows: Dashboard link, email, Logout button — **no Admin link**
+   - Manually navigate to `http://localhost:3000/admin` → redirected back to `/dashboard`
+4. **Test Admin access:**
+   - Click Logout → redirected to `/login`
+   - Enter `admin@test.com` → click Sign In → redirected to `/dashboard`
+   - Navbar shows: Dashboard link, **Admin link**, email, Logout button
+   - Click "Admin" → see Admin page with System Status, Total Mock Revenue ($47,892), etc.
+5. **Test persistence:**
+   - Refresh the page at `/admin` → still on Admin page (state persisted in localStorage)
+   - Refresh the page at `/dashboard` → still on Dashboard
+6. **Test Logout:**
+   - Click Logout → redirected to `/login`, localStorage cleared
+
+---
+
+### 8d. Frontend Unit Tests (Vitest)
+
+```bash
+cd frontend
+npm test
+# → 5/5 Passing
+```
+
+| Test | File | What It Covers |
+|------|------|---------------|
+| Starts with null user | AuthContext.test.tsx | Initial state is null |
+| admin@test.com → Admin | AuthContext.test.tsx | Role detection logic |
+| any other email → Customer | AuthContext.test.tsx | Role detection logic |
+| Persists to localStorage | AuthContext.test.tsx | State survives refresh |
+| Clears on logout | AuthContext.test.tsx | Logout clears context + storage |
+
+---
+
 ### 8c. Subscription Number
 
 - Auto-generated as `SUB-XXXXX` (random 5 digits) when creating a new subscription without one
@@ -690,9 +778,17 @@ All use randomness → different results on each call.
 ### 9. Unit Tests
 
 ```bash
+# Backend tests
 dotnet test
 # → 13/13 Passing
+
+# Frontend tests
+cd frontend
+npm test
+# → 5/5 Passing
 ```
+
+**Backend tests (xUnit + Moq + FluentAssertions):**
 
 | Test | File | What It Covers |
 |------|------|---------------|
@@ -709,6 +805,18 @@ dotnet test
 | Reminders for 3 upcoming subs | ReminderTaskTests | 3 subs due within 3 days → 3 reminders sent |
 | Reminders when none upcoming | ReminderTaskTests | No upcoming → 0 reminders sent |
 | Reminders filter by date range | ReminderTaskTests | Subs outside 3-day window are excluded |
+
+**Frontend tests (Vitest + happy-dom + @testing-library/react):**
+
+| Test | File | What It Covers |
+|------|------|---------------|
+| Starts with null user | AuthContext.test.tsx | Initial state is null |
+| admin@test.com → Admin | AuthContext.test.tsx | Role detection: correct role assigned |
+| any other email → Customer | AuthContext.test.tsx | Role detection: non-admin email |
+| Persists to localStorage | AuthContext.test.tsx | State survives page refresh |
+| Clears on logout | AuthContext.test.tsx | Logout clears context + storage |
+
+**Total: 18 tests (13 backend + 5 frontend)**
 
 ---
 
@@ -751,7 +859,8 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 - ✅ .NET 8 + React 18 + TypeScript + Vite
 - ✅ SQL Server with EF Core (entity configurations, migrations)
 - ✅ Seed data for testing
-- ✅ Unit tests (xUnit + Moq + FluentAssertions, AAA pattern)
+- ✅ Unit tests (13 backend xUnit + 5 frontend Vitest)
+- ✅ Role-Based Access Control (mock auth: Admin/Customer roles, protected routes, conditional navbar)
 - ✅ CI pipeline (GitHub Actions)
 - ✅ AI Usage documented in README.md
 
@@ -767,4 +876,4 @@ This project was developed entirely with AI assistance. The AI was used for:
 - **Testing** — generating xUnit test cases with Moq mocks covering success, failure, skip, and error scenarios
 - **Configuration** — EF Core setup, migration commands, Tailwind CSS integration, GitHub Actions CI
 
-All AI-generated output was reviewed, adapted, and verified via build (0 errors, 0 warnings) and test runs (13/13 passing) before inclusion.
+All AI-generated output was reviewed, adapted, and verified via build (0 errors, 0 warnings) and test runs (18/18 passing — 13 backend xUnit + 5 frontend Vitest) before inclusion.
