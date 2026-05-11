@@ -1095,6 +1095,23 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 
 ---
 
+## Test Credentials
+
+| Role | Email | Password | Customer ID | Notes |
+|------|-------|----------|-------------|-------|
+| Admin | `admin@test.com` | `admin123` | — | Full system access |
+| Customer 1 (John Doe) | `john.doe@email.com` | `password123` | 1 | Has Netflix & Spotify subscriptions |
+| Customer 2 (Jane Smith) | `jane.smith@email.com` | `password123` | 2 | Has Electricity Bill & Internet subscriptions |
+| Customer 3 (Bob Wilson) | `bob.wilson@email.com` | `password123` | 3 | Has Cloud Storage subscription |
+
+### Login Tips
+- Login now **validates both email and password** — wrong password shows "Invalid email or password."
+- Customer ID is now **correctly mapped** per email (no longer always customerId=1)
+- New users can **register** via the Register page (creates a new customer in the database)
+- **Forgot password** is not implemented — use the passwords above
+
+---
+
 ## AI Usage
 
 This project was developed entirely with AI assistance. The AI was used for:

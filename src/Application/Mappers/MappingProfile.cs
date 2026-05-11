@@ -24,7 +24,8 @@ public static class MappingProfile
         {
             FirstName = dto.FirstName,
             LastName = dto.LastName,
-            Email = dto.Email
+            Email = dto.Email,
+            Password = dto.Password
         };
     }
 

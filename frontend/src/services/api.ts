@@ -9,6 +9,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     const error = await response.json().catch(() => ({ error: 'Request failed' }))
     throw new Error(error.error || 'Request failed')
   }
+  if (response.status === 204) return undefined as T
   return response.json()
 }
 
@@ -46,5 +47,11 @@ export const api = {
   },
   paymentTask: {
     processOverdue: () => request<any>('/payment-task/process-overdue', { method: 'POST' }),
+  },
+  auth: {
+    login: (data: { email: string; password: string }) =>
+      request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+    register: (data: { firstName: string; lastName: string; email: string; password: string }) =>
+      request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   },
 }

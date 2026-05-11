@@ -20,6 +20,9 @@ public class CustomerRepository : ICustomerRepository
     public async Task<IEnumerable<Customer>> GetAllAsync() =>
         await _context.Customers.ToListAsync();
 
+    public async Task<Customer?> GetByEmailAsync(string email) =>
+        await _context.Customers.FirstOrDefaultAsync(c => c.Email == email);
+
     public async Task<Customer> AddAsync(Customer customer)
     {
         await _context.Customers.AddAsync(customer);

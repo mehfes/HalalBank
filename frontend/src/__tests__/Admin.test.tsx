@@ -11,7 +11,12 @@ vi.mock('../services/api', () => {
   ]
   return {
     api: {
-      subscriptions: { getAll: vi.fn(() => Promise.resolve(subs)) },
+      subscriptions: {
+        getAll: vi.fn(() => Promise.resolve(subs)),
+        update: vi.fn(() => Promise.resolve()),
+        delete: vi.fn(() => Promise.resolve()),
+      },
+      paymentTask: { processOverdue: vi.fn(() => Promise.resolve({ checkedCount: 0, paidCount: 0, failedCount: 0, skippedCount: 0, details: [] })) },
     },
   }
 })

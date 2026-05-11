@@ -70,23 +70,28 @@ describe('Discover Page - Customer', () => {
     expect(screen.getByText('$9.99')).toBeDefined()
   })
 
-  it('should have Subscribe buttons enabled for Customer', async () => {
-    renderDiscoverAsCustomer()
-
-    await waitFor(() => {
-      const buttons = screen.getAllByText('Subscribe')
-      expect(buttons.length).toBe(2)
-      buttons.forEach(btn => expect((btn as HTMLButtonElement).disabled).toBe(false))
-    })
-  })
-
-  it('should call subscriptions.create with customerId and plan data on Subscribe', async () => {
+  it('should open detail modal when clicking a card', async () => {
     renderDiscoverAsCustomer()
 
     await waitFor(() => screen.getByText('Netflix Premium'))
 
-    const subscribeButtons = screen.getAllByText('Subscribe')
-    await userEvent.click(subscribeButtons[0])
+    await userEvent.click(screen.getByText('Netflix Premium'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Subscribe - $15.99/mo')).toBeDefined()
+    })
+  })
+
+  it('should call subscriptions.create with customerId and plan data on Subscribe from modal', async () => {
+    renderDiscoverAsCustomer()
+
+    await waitFor(() => screen.getByText('Netflix Premium'))
+
+    await userEvent.click(screen.getByText('Netflix Premium'))
+
+    await waitFor(() => screen.getByText('Subscribe - $15.99/mo'))
+
+    await userEvent.click(screen.getByText('Subscribe - $15.99/mo'))
 
     await waitFor(() => {
       expect(vi.mocked(api.subscriptions.create).mock.calls.length).toBe(1)
@@ -99,13 +104,16 @@ describe('Discover Page - Customer', () => {
     })
   })
 
-  it('should show toast after successful subscribe', async () => {
+  it('should show toast after successful subscribe from modal', async () => {
     renderDiscoverAsCustomer()
 
     await waitFor(() => screen.getByText('Netflix Premium'))
 
-    const subscribeButtons = screen.getAllByText('Subscribe')
-    await userEvent.click(subscribeButtons[0])
+    await userEvent.click(screen.getByText('Netflix Premium'))
+
+    await waitFor(() => screen.getByText('Subscribe - $15.99/mo'))
+
+    await userEvent.click(screen.getByText('Subscribe - $15.99/mo'))
 
     await waitFor(() => {
       expect(screen.getByText('Subscribed to Netflix Premium!')).toBeDefined()

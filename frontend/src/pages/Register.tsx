@@ -4,10 +4,27 @@ import { useAuth } from '../contexts/AuthContext'
 
 export default function Register() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { register } = useAuth()
   const [email, setEmail] = useState('')
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async () => {
+    if (!email.trim() || !password.trim() || !firstName.trim() || !lastName.trim()) return
+    setError('')
+    setLoading(true)
+    try {
+      await register(firstName.trim(), lastName.trim(), email.trim(), password)
+      navigate('/dashboard')
+    } catch (err: any) {
+      setError(err.message || 'Registration failed.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -18,12 +35,22 @@ export default function Register() {
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
             <input
               type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="John Doe"
+              value={firstName}
+              onChange={e => setFirstName(e.target.value)}
+              placeholder="John"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={e => setLastName(e.target.value)}
+              placeholder="Doe"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -47,13 +74,17 @@ export default function Register() {
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
-          <p className="text-xs text-slate-400">Use <span className="font-mono">admin@test.com</span> to register as Admin</p>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+              {error}
+            </div>
+          )}
           <button
-            onClick={() => { login(email.trim()); navigate('/dashboard') }}
-            disabled={!email.trim()}
+            onClick={handleSubmit}
+            disabled={!email.trim() || !password.trim() || !firstName.trim() || !lastName.trim() || loading}
             className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
-            Register
+            {loading ? 'Creating account...' : 'Register'}
           </button>
         </div>
         <p className="text-center text-sm text-slate-500 mt-6">

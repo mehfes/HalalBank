@@ -1,14 +1,18 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { api } from '../services/api'
 
 interface User {
   email: string
   role: 'Admin' | 'Customer'
   customerId?: number
+  firstName?: string
+  lastName?: string
 }
 
 interface AuthContextType {
   user: User | null
-  login: (email: string) => void
+  login: (email: string, password: string) => Promise<void>
+  register: (firstName: string, lastName: string, email: string, password: string) => Promise<void>
   logout: () => void
 }
 
@@ -28,12 +32,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
-  const login = (email: string) => {
+  const login = async (email: string, password: string) => {
     if (email === 'admin@test.com') {
-      setUser({ email, role: 'Admin' })
-    } else {
-      setUser({ email, role: 'Customer', customerId: 1 })
+      if (password !== 'admin123') {
+        throw new Error('Invalid email or password.')
+      }
+      const adminUser = { email, role: 'Admin' as const }
+      setUser(adminUser)
+      return
     }
+    const result = await api.auth.login({ email, password })
+    setUser({ email: result.email, role: 'Customer', customerId: result.id, firstName: result.firstName, lastName: result.lastName })
+  }
+
+  const register = async (firstName: string, lastName: string, email: string, password: string) => {
+    const result = await api.auth.register({ firstName, lastName, email, password })
+    setUser({ email: result.email, role: 'Customer', customerId: result.id, firstName: result.firstName, lastName: result.lastName })
   }
 
   const logout = () => {
@@ -41,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )

@@ -7,11 +7,21 @@ export default function Login() {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = () => {
-    if (!email.trim()) return
-    login(email.trim())
-    navigate('/dashboard')
+  const handleSubmit = async () => {
+    if (!email.trim() || !password.trim()) return
+    setError('')
+    setLoading(true)
+    try {
+      await login(email.trim(), password)
+      navigate('/dashboard')
+    } catch (err: any) {
+      setError(err.message || 'Login failed.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -31,7 +41,7 @@ export default function Login() {
               placeholder="you@example.com"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
-            <p className="text-xs text-slate-400 mt-1">Try <span className="font-mono">user@test.com</span> (Customer) or <span className="font-mono">admin@test.com</span> (Admin)</p>
+            <p className="text-xs text-slate-400 mt-1">Try <span className="font-mono">john.doe@email.com</span> (Customer) or <span className="font-mono">admin@test.com</span> (Admin)</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
@@ -43,12 +53,17 @@ export default function Login() {
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+              {error}
+            </div>
+          )}
           <button
             onClick={handleSubmit}
-            disabled={!email.trim()}
+            disabled={!email.trim() || !password.trim() || loading}
             className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
-            Sign In
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </div>
         <p className="text-center text-sm text-slate-500 mt-6">

@@ -40,6 +40,12 @@ export default function PaymentGateway() {
       .finally(() => setLoading(false))
   }, [subscriptionId])
 
+  useEffect(() => {
+    if (!alreadyPaid) return
+    const t = setTimeout(() => navigate('/dashboard'), 5000)
+    return () => clearTimeout(t)
+  }, [alreadyPaid, navigate])
+
   const handleConfirm = async () => {
     setProcessing(true)
     await new Promise(r => setTimeout(r, 2000))
@@ -106,6 +112,13 @@ export default function PaymentGateway() {
             <div className="bg-emerald-100 border-2 border-emerald-500 text-emerald-800 rounded-xl px-6 py-5 text-center">
               <p className="text-lg font-bold">Already Paid for this Period</p>
               <p className="text-sm mt-1">This subscription has already been paid for {debt?.period ?? 'the current period'}.</p>
+              <p className="text-xs mt-2 text-emerald-600">Redirecting to dashboard in 5 seconds...</p>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="mt-4 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer"
+              >
+                Go to Dashboard Now
+              </button>
             </div>
           )}
 

@@ -16,23 +16,13 @@ interface Subscription {
   status: string
 }
 
-interface PaymentTaskResult {
-  checkedCount: number
-  paidCount: number
-  failedCount: number
-  skippedCount: number
-  details: string[]
-}
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
   const [showToast, setShowToast] = useState(false)
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
-  const [taskResult, setTaskResult] = useState<PaymentTaskResult | null>(null)
   const [loading, setLoading] = useState(true)
-  const [taskLoading, setTaskLoading] = useState(false)
 
   useEffect(() => {
     if (location.state?.paymentSuccess) {
@@ -61,23 +51,6 @@ export default function Dashboard() {
   const upcomingPayments = subscriptions.filter(s =>
     s.status === 'Active' && new Date(s.nextPaymentDate) >= now && new Date(s.nextPaymentDate) <= sevenDays
   )
-
-  const handleTriggerPaymentCheck = async () => {
-    setTaskLoading(true)
-    setTaskResult(null)
-    try {
-      const result = await api.paymentTask.processOverdue()
-      setTaskResult(result)
-      if (user?.role === 'Customer' && user?.customerId) {
-        const updated = await api.subscriptions.getByCustomerId(user.customerId)
-        setSubscriptions(updated)
-      }
-    } catch (err: any) {
-      setTaskResult({ checkedCount: 0, paidCount: 0, failedCount: 0, skippedCount: 0, details: [`Error: ${err.message}`] })
-    } finally {
-      setTaskLoading(false)
-    }
-  }
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -208,46 +181,6 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-800">Manual Payment Check</h2>
-              <p className="text-sm text-slate-500 mt-1">Check all overdue subscriptions for debt and process payments automatically.</p>
-            </div>
-            <button
-              onClick={handleTriggerPaymentCheck}
-              disabled={taskLoading}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
-            >
-              {taskLoading ? 'Processing...' : 'Trigger Manual Payment Check'}
-            </button>
-          </div>
-
-          {taskLoading && (
-            <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
-              <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-              Processing overdue subscriptions...
-            </div>
-          )}
-
-          {taskResult && (
-            <div className="mt-4 space-y-3">
-              <div className="flex flex-wrap gap-3">
-                <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-full">Checked: {taskResult.checkedCount}</span>
-                <span className="text-sm bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full">Paid: {taskResult.paidCount}</span>
-                <span className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full">Failed: {taskResult.failedCount}</span>
-                <span className="text-sm bg-slate-100 text-slate-600 px-3 py-1 rounded-full">Skipped: {taskResult.skippedCount}</span>
-              </div>
-              {taskResult.details.length > 0 && (
-                <ul className="text-xs text-slate-600 space-y-1 bg-slate-50 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  {taskResult.details.map((d, i) => (
-                    <li key={i} className="leading-relaxed">{d}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </section>
       </main>
     </div>
   )
