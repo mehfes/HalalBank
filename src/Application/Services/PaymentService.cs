@@ -66,6 +66,7 @@ public class PaymentService : IPaymentService
 
         var success = await _paymentGateway.ProcessPaymentAsync(dto.Amount, $"SUB-{dto.SubscriptionId}");
         var payment = dto.ToEntity();
+        payment.Period = $"{now.Year} {now.Month:D2}";
         if (!success) payment.Status = Domain.Enums.PaymentStatus.Fail;
 
         var created = await _unitOfWork.Payments.AddAsync(payment);

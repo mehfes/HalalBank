@@ -67,6 +67,7 @@ public static class MappingProfile
             SubscriptionId = payment.SubscriptionId,
             Amount = payment.Amount,
             PaymentDate = payment.PaymentDate,
+            Period = payment.Period,
             Status = payment.Status.ToString()
         };
     }

@@ -1058,11 +1058,11 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 
 | Requirement | Status | Explanation |
 |-------------|--------|-------------|
-| **Ödeme dönemi (Period) on Payment** | ❌ Not implemented | Original spec had `Period` field on Payment. Removed per later user simplification of Payment entity to `{Id, SubscriptionId, Amount, PaymentDate, Status}`. |
+| **Ödeme dönemi (Period) on Payment** | ✅ Implemented | Added `Period` field to Payment entity (`2026 05` format), DTOs, configuration, and mapping. Stored automatically on payment creation. |
 | **Abonelik numarası (Subscription Number)** | ✅ Implemented | Added to Subscription entity, DTOs, seed data (`SUB-48291` etc.), and auto-generated on create |
 | **Abonelik türü (Type) enum — Electricity, Water etc.** | ❌ Replaced with `Category` (string) | The user later re-specified the Subscription entity and `Category` is a free-text field instead of a constrained enum. |
 | **Hatırlatma Mekanizması / Reminder endpoint** | ✅ Implemented | `POST /api/payment-task/send-reminders` sends email reminders for subscriptions due within 3 days |
-| **Bildirim Servisi / Notification Service (Email/SMS)** | ✅ Implemented (mock) | `MockNotificationService` logs email content via `ILogger` — simulates external email/SMS service |
+| **Bildirim Servisi / Notification Service (Email/SMS)** | ✅ Implemented (SMTP) | `EmailNotificationService` sends real HTML emails via SMTP (configurable in user-secrets). Falls back to console log if SMTP not configured. |
 | **ER Diagram** | ❌ Not created | Required per "Sistem Tasarım Dokümanları" section |
 | **API Endpoint List (standalone doc)** | 🟡 Partial | Endpoints exist and are documented in this file, but no separate API specification document was produced |
 | **Flow Diagram (debt→payment→reminder)** | ❌ Not created | Required per "Sistem Tasarım Dokümanları" section |
@@ -1072,10 +1072,9 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 - ✅ Customers: Create / Read / Delete
 - ✅ Subscriptions: Create / Read / Update / Delete
 - ✅ Payments: Create / Read
-- ✅ Debt Query via mock 3rd party service
-- ✅ Payment Processing via mock service
+- ✅ Debt Query via mock 3rd party service (returns exact subscription price, not random)
+- ✅ Payment Processing via mock service (80% success / 20% fail)
 - ✅ At least 2 different mock external services (MockPaymentGateway, MockExternalPaymentService, MockBankMessageHandler, MockNotificationService)
-- ✅ Debt query now returns exact subscription price from database (no random amounts)
 - ✅ Subscription Number on Subscription entity + seed data
 - ✅ One Customer → Many Subscriptions → Many Payments (EF Core relationships with cascade delete)
 - ✅ RESTful API design (proper HTTP verbs, status codes)
@@ -1087,11 +1086,18 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 - ✅ Role-Based Access Control (mock auth: Admin/Customer roles, protected routes, conditional navbar)
 - ✅ Service Catalog (SubscriptionPlan entity, CRUD API, seed data)
 - ✅ Data Isolation (customerId on AuthContext, per-user dashboard)
-- ✅ Discover page (plan cards + Subscribe button with auto-redirect)
-- ✅ Admin page (All Users Overview table)
+- ✅ Discover page (plan cards + detail modal with Subscribe button)
+- ✅ Admin page (All Users Overview + edit status + delete subscriptions)
 - ✅ Discover page with admin catalog management (Create/Delete plans)
 - ✅ CI pipeline (GitHub Actions)
 - ✅ AI Usage documented in README.md
+- ✅ **Yeni:** Real email sending via configurable SMTP (`EmailNotificationService`)
+- ✅ **Yeni:** Background auto-processing (`ScheduledPaymentService` runs every 6 hours)
+- ✅ **Yeni:** Login with password validation (backend auth API + user secrets)
+- ✅ **Yeni:** Registration creates real customer in database
+- ✅ **Yeni:** Payment Gateway auto-redirects after "Already Paid" (5s timer + manual button)
+- ✅ **Yeni:** Admin can change subscription status (Active/Passive) and delete subscriptions
+- ✅ **Yeni:** Discover plan detail modal (click card → see full details → subscribe)
 
 ---
 
