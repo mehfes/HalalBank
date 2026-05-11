@@ -122,7 +122,7 @@ options.UseSqlServer(connStr, sqlOptions => sqlOptions.EnableRetryOnFailure())
 - `ICustomerService` — GetById, GetAll, Create, Delete
 - `ISubscriptionService` — GetById, GetByCustomerId, GetAll, GetActiveCount, GetUpcomingPayments, Create, Update, Delete
 - `IPaymentService` — GetById, GetBySubscriptionId, GetAll, QueryDebt, Pay
-- `IDebtService` — QueryDebt (mock external)
+- `IDebtService` — QueryDebt (removed — debt now returned directly from subscription price)
 - `IPaymentGateway` — ProcessPayment (mock external)
 
 ### Service Implementations
@@ -144,7 +144,6 @@ options.UseSqlServer(connStr, sqlOptions => sqlOptions.EnableRetryOnFailure())
 - `UnitOfWork` — Lazy-loaded repositories, single SaveChangesAsync
 
 ### Mock External Services
-- `MockDebtService` — Returns random debt amount (1/3 chance of zero)
 - `MockPaymentGateway` — Returns success if amount > 0
 
 ---
@@ -182,7 +181,7 @@ options.UseSqlServer(connStr, sqlOptions => sqlOptions.EnableRetryOnFailure())
 ### Program.cs DI Registration
 ```csharp
 IUnitOfWork, ICustomerService, ISubscriptionService, IPaymentService,
-IDebtService, IPaymentGateway, IExternalPaymentService, IPaymentTaskService
+IPaymentGateway, IExternalPaymentService, IPaymentTaskService
 IHttpClientFactory ("MockBankApi" named client with MockBankMessageHandler)
 CORS (AllowAll)
 Swagger (Development only)
@@ -317,16 +316,15 @@ All 5 subscriptions are overdue (NextPaymentDate ≤ today) so they will be pick
 - Packages: Moq 4.20, FluentAssertions 8.9
 - References: Application, Domain
 
-### 6 Passing Tests
+### 17 Passing Tests (Backend)
 
-| Test | Scenario | Key Assertions |
-|------|----------|---------------|
-| 1 | Debt exists + payment succeeds | PaidCount=1, Payment.AddAsync called, NextPaymentDate +1 month, SaveChangesAsync called |
-| 2 | Payment fails (IsSuccess=false) | FailedCount=1, No Payment.AddAsync, No UpdateAsync, SaveChangesAsync still called |
-| 3 | No debt (amount=0) | SkippedCount=1, ProcessPaymentAsync never called, No SaveChangesAsync |
-| 4 | External service throws | FailedCount=1, error in Details, No payment created |
-| 5 | Yearly billing cycle | NextPaymentDate +1 year |
-| 6 | No overdue subscriptions | All counts=0, No external calls, No SaveChangesAsync |
+| Test | File | Scenario |
+|------|------|----------|
+| 6 tests | PaymentTaskServiceTests | Success, failure, skip, error, yearly billing, empty list |
+| 4 tests | PaymentServiceTests | Double-payment throw, already-paid returns 0 debt, exact price returned, not-found throws |
+| 2 tests | SubscriptionServiceTests | Number generation, number preservation |
+| 2 tests | MockNotificationServiceTests | No throw on send, logs on send |
+| 3 tests | ReminderTaskTests | Filter 3 upcoming, filter none upcoming, filter by date |
 
 ### Mock Architecture
 ```
@@ -390,7 +388,7 @@ jobs:
 - Placeholder stats: System Status (Operational), Total Mock Revenue ($47,892), Registered Users (3), System Overview table
 
 ### Frontend Tests (Vitest)
-- `src/__tests__/AuthContext.test.tsx` — 5 tests covering login/logout/role detection/persistence
+- `src/__tests__/AuthContext.test.tsx` — 6 tests covering login/logout/role detection/customerId/persistence/clear
 - Uses Vitest + happy-dom + @testing-library/react
 
 ---
@@ -445,30 +443,56 @@ jobs:
 
 ## Step 16 — Discover Page & Admin Dashboard Refactor
 
-**Prompt:** Build Discover page for Customers + Admin tabs for All Users Overview and Plan Catalog management.
+**Prompt:** Build Discover page with role-based UI (Customer subscribes, Admin manages catalog) + Admin page with All Users Overview table.
 
 ### Discover Page (`/discover`)
 - Fetches all `SubscriptionPlan` records from `GET /api/subscriptionplans`
 - Renders as cards: Category badge, Plan Name, Price, Billing Cycle
-- "Subscribe" button calls `POST /api/subscriptions` with logged-in user's `customerId` and plan's details
-- Success toast + redirect to `/dashboard`
+- **Conditional UI based on role:**
+  - **Customer:** "Subscribe" button calls `POST /api/subscriptions` with logged-in user's `customerId` and plan's details. Success toast + redirect to `/dashboard`. No admin controls visible.
+  - **Admin:** Red "Delete" button on each card calls `DELETE /api/subscriptionplans/{id}`. "Create New Plan" button at top toggles an inline form (Provider Name, Category, Price, Billing Cycle) that calls `POST /api/subscriptionplans`. No Subscribe buttons.
+- Catalog management moved from Admin page's "Manage Plans" tab into Discover for Admins.
 
 ### Navbar
-- "Discover" link visible only when `role === 'Customer'`
+- "Discover" link visible to **all logged-in users** (both Customer and Admin)
 - "Admin" link remains visible only when `role === 'Admin'`
 
 ### Admin Page Refactor
-- Removed placeholder stats entirely
-- Two tabbed sections:
-  - **All Users Overview** — Table of ALL subscriptions (`GET /api/subscriptions`)
-  - **Manage Plans** — Table of SubscriptionPlans + inline form to Add/Edit/Delete
+- Removed placeholder stats entirely and removed "Manage Plans" tab
+- Single section: **All Users Overview** — Table of ALL subscriptions (`GET /api/subscriptions`)
 
 ### API (frontend)
 - `api.subscriptionPlans` — getAll, getById, create, update, delete
 
 ### Frontend Tests
-- `Discover.test.tsx` — 5 tests: loading state, renders cards, subscribe button enabled, calls create API, shows toast
-- `Admin.test.tsx` — 8 tests: default tab, displays subscriptions, switches tabs, shows form, create plan, edit mode, update plan, delete plan
+- `Discover.test.tsx` — 15 tests: 7 customer-mode tests (loading, renders cards, subscribe enabled, calls create API, toast, no admin buttons visible) + 8 admin-mode tests (loading, renders cards, Delete buttons instead of Subscribe, Create New Plan button, form fields, creates plan via API, deletes plan via API, delete toast)
+- `Admin.test.tsx` — 3 tests: shows All Subscriptions heading, displays all subscriptions, shows Admin Panel heading
+
+---
+
+## Step 17 — Fixed Debt Query to Return Exact Subscription Price
+
+**Prompt:** Remove random debt amount generation. Return exact subscription price from database.
+
+### Problem
+`PaymentService.QueryDebtAsync` delegated to `MockDebtService` which generated random amounts using `new Random().NextDouble() * 1000 + 50`. The PaymentGateway UI showed random values instead of the actual subscription price.
+
+### Fix
+- `PaymentService.QueryDebtAsync` now returns `subscription.Price` directly instead of calling `_debtService.QueryDebtAsync()`
+- Removed `IDebtService` interface and `MockDebtService` implementation entirely
+- Removed `builder.Services.AddScoped<IDebtService, MockDebtService>()` from `Program.cs`
+- `MockBankMessageHandler` already correctly extracted price from URL for the `PaymentTaskService` flow, so no change needed there
+
+### Tests Added
+| Test | File | What It Covers |
+|------|------|---------------|
+| QueryDebtAsync returns exact subscription price | PaymentServiceTests | When not already paid, Amount = subscription.Price (15.99) |
+| QueryDebtAsync throws when subscription not found | PaymentServiceTests | KeyNotFoundException for invalid subscription ID |
+
+### Results
+- Backend: 17/17 passing (+2 new tests)
+- Frontend: 24/24 passing (no changes needed — already reads `debt.amount` from API)
+- Build: 0 errors, 0 warnings
 
 ---
 
@@ -494,7 +518,7 @@ HalalBank/
 │   │   ├── DTOs/           CustomerDto.cs, SubscriptionDto.cs, PaymentDto.cs,
 │   │   │                   SubscriptionPlanDto.cs
 │   │   ├── Interfaces/     ICustomerService.cs, ISubscriptionService.cs,
-│   │   │                   IPaymentService.cs, IDebtService.cs, IPaymentGateway.cs,
+│   │   │                   IPaymentService.cs, IPaymentGateway.cs,
 │   │   │                   IExternalPaymentService.cs, IPaymentTaskService.cs,
 │   │   │                   INotificationService.cs, ISubscriptionPlanService.cs
 │   │   ├── Mappers/        MappingProfile.cs
@@ -510,7 +534,7 @@ HalalBank/
 │   │   ├── Migrations/     InitialCreate, SeedData, AddSubscriptionNumber, AddSubscriptionPlans
 │   │   ├── Repositories/   CustomerRepository.cs, SubscriptionRepository.cs,
 │   │   │                   PaymentRepository.cs, SubscriptionPlanRepository.cs, UnitOfWork.cs
-│   │   └── ExternalServices/ MockDebtService.cs, MockPaymentGateway.cs,
+│   │   └── ExternalServices/ MockPaymentGateway.cs,
 │   │                        MockExternalPaymentService.cs, MockBankMessageHandler.cs,
 │   │                        MockNotificationService.cs
 │   └── API/
@@ -528,15 +552,16 @@ HalalBank/
 │   └── src/
 │       ├── index.css, main.tsx, App.tsx (router: / → /login → /register → /dashboard → /admin → /payment-gateway/:id)
 │       ├── contexts/   AuthContext.tsx (RBAC: Admin/Customer roles + customerId, localStorage persistence)
-│       ├── __tests__/  AuthContext.test.tsx (6 tests), Discover.test.tsx (5 tests), Admin.test.tsx (8 tests)
+│       ├── __tests__/  AuthContext.test.tsx (6 tests), Discover.test.tsx (15 tests), Admin.test.tsx (3 tests)
 │       ├── services/api.ts (+ subscriptionPlans API)
-│       ├── components/  Navbar.tsx (conditional Admin + Discover links, Logout), ProtectedRoute.tsx
-│       └── pages/  Login.tsx, Register.tsx, Dashboard.tsx (customerId-driven), Admin.tsx (tabs: users + plans),
-│                   Discover.tsx (plan cards + Subscribe), PaymentGateway.tsx
+       │ ├── components/  Navbar.tsx (Discover link for all roles + Admin link + Logout), ProtectedRoute.tsx
+       │ └── pages/  Login.tsx, Register.tsx, Dashboard.tsx (customerId-driven), Admin.tsx (all subscriptions table),
+       │                   Discover.tsx (Customer: Subscribe / Admin: Delete + Create), PaymentGateway.tsx
 └── tests/
     └── Application.Tests/
         ├── Application.Tests.csproj
         ├── PaymentTaskServiceTests.cs (6 tests)
+        ├── PaymentServiceTests.cs (2 tests)
         ├── SubscriptionServiceTests.cs (2 tests)
         ├── MockNotificationServiceTests.cs (2 tests)
         └── ReminderTaskTests.cs (3 tests)
@@ -648,16 +673,16 @@ curl -X DELETE http://localhost:5000/api/subscriptions/1
 
 ---
 
-### 3. Debt Query — 3rd Party Mock Service
+### 3. Debt Query — Returns Exact Subscription Price
 
 ```bash
 curl -X POST http://localhost:5000/api/payments/query-debt/1
-# → 200 + {"amount":123.45,"dueDate":"2026-06-01T...","period":"2026 05"}
+# → 200 + {"amount":15.99,"dueDate":"2026-06-01T...","period":"2026 05"}
 ```
 
-- Run multiple times → amount varies randomly
-- ~1/3 chance of getting `amount: 0` (no debt)
-- This calls the `IExternalPaymentService.CheckDebtAsync()` which goes through `HttpClient` → `MockBankMessageHandler` → returns mock JSON
+- Returns the **exact subscription price** from the database (e.g., $15.99 for Netflix)
+- If already paid for the current period: `amount: 0` with "Already Paid" display on frontend
+- No random amount generation — always the subscription's actual price
 
 ---
 
@@ -735,13 +760,13 @@ curl http://localhost:5000/api/dashboard
 | `/login` | Login | Public | Sign in — `user@test.com` → Customer + customerId=1; `admin@test.com` → Admin |
 | `/register` | Register | Public | Register form → login + redirect to dashboard |
 | `/dashboard` | Dashboard | Any logged-in user | Auto-fetches subscriptions for logged-in user's customerId. Cards show user's own data |
-| `/discover` | Discover | Any logged-in user | Plan cards with Subscribe button. Uses customerId from auth |
-| `/admin` | Admin | **Admin only** | Protected by `<AdminRoute>`. Tabs: All Users Overview + Manage Plans |
+| `/discover` | Discover | Any logged-in user | Plan cards. Customer sees Subscribe button; Admin sees Delete + Create New Plan form |
+| `/admin` | Admin | **Admin only** | Protected by `<AdminRoute>`. Shows all subscriptions table |
 | `/payment-gateway/:subscriptionId` | Payment Gateway | Any logged-in user | Bank-like payment interface with debt query + confirm |
 
 **Navbar:**
 - "Dashboard" link — visible to all users
-- "Discover" link — **only visible** when `user.role === 'Customer'`
+- "Discover" link — visible to **all logged-in users** (both Customer and Admin)
 - "Admin" link — **only visible** when `user.role === 'Admin'`
 - Email display (right side) — shows current user's email
 - "Logout" button — clears AuthContext + localStorage, redirects to `/login`
@@ -791,13 +816,14 @@ curl -X POST http://localhost:5000/api/payment-task/send-reminders
 **Route:** `/payment-gateway/:subscriptionId`
 
 **How to test:**
-1. Go to Dashboard → select a customer → click **Pay** on any subscription
+1. Go to Dashboard → click **Pay** on any subscription
 2. You're redirected to a bank-like page with dark gradient background
 3. It fetches debt info via `POST /api/payments/query-debt/{subscriptionId}`
-4. Displays: Subscription ID, Amount Due, Due Date, Period
-5. Click **Confirm Payment — $XXX.XX** → 2-second spinner appears
+4. Displays: Subscription ID, **Amount Due = exact subscription price** (e.g., $15.99), Due Date, Period
+5. Click **Confirm Payment — $15.99** → 2-second spinner appears
 6. Calls `POST /api/payments/pay` → on success redirects to Dashboard with green toast
 7. On payment failure, error message shown on the gateway page
+8. **Double-payment prevention:** Navigate back to `/payment-gateway/1` → shows green "Already Paid for this Period" badge (no random amount, confirms debt returns $0)
 
 ---
 
@@ -816,7 +842,7 @@ curl -X POST http://localhost:5000/api/payment-task/send-reminders
 4. **Test Admin access (system-wide view):**
    - Click Logout → redirected to `/login`
    - Enter `admin@test.com` → click Sign In → redirected to `/dashboard`
-   - Navbar shows: Dashboard link, **Admin link**, email, Logout button — **no Discover link**
+   - Navbar shows: Dashboard link, **Discover link**, **Admin link**, email, Logout button
    - Click "Admin" → see **All Users Overview** tab with ALL 5 subscriptions across all customers
 5. **Test persistence:**
    - Refresh the page at `/admin` → still on Admin page (state persisted in localStorage)
@@ -856,7 +882,7 @@ curl -X DELETE http://localhost:5000/api/subscriptionplans/1
 
 ---
 
-### 8e. Discover Page — Subscribe To a Plan
+### 8e. Discover Page — Subscribe (Customer) / Manage Catalog (Admin)
 
 **Route:** `/discover`
 
@@ -869,26 +895,27 @@ curl -X DELETE http://localhost:5000/api/subscriptionplans/1
    - Internet Bill ($59.99/mo, Utilities)
 3. Click **Subscribe** on any card → green toast "Subscribed to {Plan}!" → auto-redirects to Dashboard
 4. Dashboard now shows the new subscription in "My Subscriptions" table
-5. **Admin test:** Login as `admin@test.com` → Navbar has **no** Discover link → navigate to `/discover` → page loads but Subscribe buttons show "Sign in as Customer" (disabled)
+5. Customer should **not** see "Create New Plan" button or "Delete" buttons
+
+**How to test (Admin):**
+1. Login as `admin@test.com` → Navbar shows **Discover** link
+2. Click **Discover** → see 4 plan cards with **red "Delete" buttons** (no Subscribe buttons)
+3. Click **Create New Plan** button at top → inline form appears (Provider Name, Category, Price, Billing Cycle)
+4. Fill in: Name="Disney+", Category="Streaming", Price="12.99" → click **Add Plan** → green toast "Plan created" → new card appears
+5. Click **Delete** on any plan card → green toast "Plan deleted" → card removed from grid
+6. Click **Cancel** to hide the creation form
 
 ---
 
-### 8f. Admin Dashboard — Tabs & Plan Management
+### 8f. Admin Dashboard — All Users Overview
 
 **Route:** `/admin` (Admin only)
 
 **How to test:**
 1. Login as `admin@test.com` → click **Admin** in Navbar
-2. **All Users Overview** tab (default):
-   - Shows table with ALL subscriptions across all customers
-   - Columns: Customer ID, Subscription #, Provider, Category, Price, Billing, Next Payment, Status
-3. Click **Manage Plans** tab:
-   - Shows table of seeded plans with Edit/Delete buttons per row
-   - Shows **Add New Plan** form at top
-4. **Add a plan:** Fill in Name, Category, Price → click "Add Plan" → plan appears in table
-5. **Edit a plan:** Click **Edit** on any row → form fills with plan data → form title changes to "Edit Plan" → modify fields → click "Update Plan" → table updates
-6. **Cancel edit:** Click **Cancel** → form resets to Add mode
-7. **Delete a plan:** Click **Delete** on any row → plan removed from table
+2. Shows table with ALL subscriptions across all customers
+3. Columns: Customer ID, Subscription #, Provider, Category, Price, Billing, Next Payment, Status
+4. Catalog management (Create/Delete plans) moved to **Discover** page for Admins
 
 ---
 
@@ -897,7 +924,7 @@ curl -X DELETE http://localhost:5000/api/subscriptionplans/1
 ```bash
 cd frontend
 npm test
-# → 19/19 Passing
+# → 24/24 Passing
 ```
 
 | Test | File | What It Covers |
@@ -938,10 +965,11 @@ The system interacts with **3 mock external services** (requirement was at least
 
 | Service | Interface | Implementation |
 |---------|-----------|----------------|
-| Debt Query | `IExternalPaymentService.CheckDebtAsync()` | `MockBankMessageHandler` returns JSON via HTTP |
+| Debt Query | `IExternalPaymentService.CheckDebtAsync()` | `MockBankMessageHandler` parses subscription price from URL |
 | Payment Processing | `IExternalPaymentService.ProcessPaymentAsync()` | `MockBankMessageHandler` with 1s delay + 80% success |
-| Legacy Debt Query | `IDebtService.QueryDebtAsync()` | `MockDebtService` (direct mock, no HTTP) |
-| Legacy Payment Gateway | `IPaymentGateway.ProcessPaymentAsync()` | `MockPaymentGateway` (direct mock, no HTTP) |
+| Payment Gateway | `IPaymentGateway.ProcessPaymentAsync()` | `MockPaymentGateway` (direct mock, no HTTP) |
+
+Note: `PaymentService.QueryDebtAsync` now returns the exact `subscription.Price` from the database instead of calling a mock service. No random amount generation.
 
 All use randomness → different results on each call.
 
@@ -952,12 +980,12 @@ All use randomness → different results on each call.
 ```bash
 # Backend tests
 dotnet test
-# → 13/13 Passing
+# → 17/17 Passing
 
 # Frontend tests
 cd frontend
 npm test
-# → 19/19 Passing
+# → 24/24 Passing
 ```
 
 **Backend tests (xUnit + Moq + FluentAssertions):**
@@ -970,6 +998,10 @@ npm test
 | Error: exception thrown | PaymentTaskServiceTests | External throws → caught gracefully, failure counted |
 | Yearly billing | PaymentTaskServiceTests | Date rolled +1 year instead of +1 month |
 | Empty overdue list | PaymentTaskServiceTests | No subscriptions → all counts zero, no calls made |
+| PayAsync already paid throws | PaymentServiceTests | Double-payment: throws `InvalidOperationException` when successful payment exists for period |
+| QueryDebtAsync already paid returns 0 | PaymentServiceTests | Already-paid subscription returns Amount=0 in debt query |
+| QueryDebtAsync returns exact price | PaymentServiceTests | Not-yet-paid subscription returns `subscription.Price` (15.99) as Amount |
+| QueryDebtAsync not-found throws | PaymentServiceTests | Invalid subscription ID throws `KeyNotFoundException` |
 | SubscriptionNumber auto-generated | SubscriptionServiceTests | When no number provided → generates `SUB-XXXXX` |
 | SubscriptionNumber preserved | SubscriptionServiceTests | When number provided → saved as-is |
 | Notification does not throw | MockNotificationServiceTests | `SendReminderEmailAsync` completes without exception |
@@ -988,21 +1020,26 @@ npm test
 | Persists admin to localStorage | AuthContext.test.tsx | Admin state survives refresh |
 | Persists customerId to localStorage | AuthContext.test.tsx | Customer with customerId persists |
 | Clears on logout | AuthContext.test.tsx | Logout clears context + storage |
-| Shows loading state | Discover.test.tsx | "Loading plans..." shown initially |
-| Renders plan cards | Discover.test.tsx | Plans displayed with name, category, price |
-| Subscribe button enabled | Discover.test.tsx | Buttons not disabled for Customer role |
-| Calls create with correct data | Discover.test.tsx | POST /api/subscriptions with customerId=1 + plan data |
-| Shows toast after subscribe | Discover.test.tsx | "Subscribed to {Plan}!" appears |
-| Default tab: All Users Overview | Admin.test.tsx | "All Subscriptions" heading shown |
+| [Customer] Shows loading state | Discover.test.tsx | "Loading plans..." shown initially |
+| [Customer] Renders plan cards | Discover.test.tsx | Plans displayed with name, category, price |
+| [Customer] Subscribe button enabled | Discover.test.tsx | Buttons enabled for Customer role |
+| [Customer] Calls create with correct data | Discover.test.tsx | POST /api/subscriptions with customerId=1 + plan data |
+| [Customer] Shows toast after subscribe | Discover.test.tsx | "Subscribed to {Plan}!" appears |
+| [Customer] No Create New Plan button | Discover.test.tsx | Customer cannot see admin create form |
+| [Customer] No Delete buttons | Discover.test.tsx | Customer cannot see admin delete buttons |
+| [Admin] Shows loading state | Discover.test.tsx | "Loading plans..." shown initially |
+| [Admin] Renders plan cards | Discover.test.tsx | Plans displayed for admin view |
+| [Admin] Shows Delete buttons | Discover.test.tsx | Delete buttons replace Subscribe for Admin |
+| [Admin] Shows Create New Plan button | Discover.test.tsx | Admin sees create button at top |
+| [Admin] Shows form fields after click | Discover.test.tsx | Create New Plan form renders inputs |
+| [Admin] Creates plan via API | Discover.test.tsx | api.subscriptionPlans.create called correctly |
+| [Admin] Deletes plan via API | Discover.test.tsx | api.subscriptionPlans.delete called with correct id |
+| [Admin] Shows toast after delete | Discover.test.tsx | "Plan deleted" toast appears |
+| Shows Admin Panel heading | Admin.test.tsx | Admin page renders heading |
+| Shows All Subscriptions heading | Admin.test.tsx | Subscriptions table heading visible |
 | Displays all subscriptions | Admin.test.tsx | All subs across all customers in table |
-| Switches to Manage Plans tab | Admin.test.tsx | Plan catalog loaded and displayed |
-| Add New Plan form visible | Admin.test.tsx | Form inputs (Name, Category, Price) visible |
-| Creates plan via API | Admin.test.tsx | api.subscriptionPlans.create called correctly |
-| Edit switches to edit mode | Admin.test.tsx | Form fills with plan data, title changes |
-| Updates plan via API | Admin.test.tsx | api.subscriptionPlans.update called |
-| Deletes plan via API | Admin.test.tsx | api.subscriptionPlans.delete called with id |
 
-**Total: 32 tests (13 backend + 19 frontend)**
+**Total: 41 tests (17 backend + 24 frontend)**
 
 ---
 
@@ -1037,7 +1074,8 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 - ✅ Payments: Create / Read
 - ✅ Debt Query via mock 3rd party service
 - ✅ Payment Processing via mock service
-- ✅ At least 2 different mock external services (actually 5: MockDebtService, MockPaymentGateway, MockExternalPaymentService, MockBankMessageHandler, MockNotificationService)
+- ✅ At least 2 different mock external services (MockPaymentGateway, MockExternalPaymentService, MockBankMessageHandler, MockNotificationService)
+- ✅ Debt query now returns exact subscription price from database (no random amounts)
 - ✅ Subscription Number on Subscription entity + seed data
 - ✅ One Customer → Many Subscriptions → Many Payments (EF Core relationships with cascade delete)
 - ✅ RESTful API design (proper HTTP verbs, status codes)
@@ -1045,12 +1083,13 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 - ✅ .NET 8 + React 18 + TypeScript + Vite
 - ✅ SQL Server with EF Core (entity configurations, migrations)
 - ✅ Seed data for testing
-- ✅ Unit tests (13 backend xUnit + 19 frontend Vitest)
+- ✅ Unit tests (17 backend xUnit + 24 frontend Vitest)
 - ✅ Role-Based Access Control (mock auth: Admin/Customer roles, protected routes, conditional navbar)
 - ✅ Service Catalog (SubscriptionPlan entity, CRUD API, seed data)
 - ✅ Data Isolation (customerId on AuthContext, per-user dashboard)
 - ✅ Discover page (plan cards + Subscribe button with auto-redirect)
-- ✅ Admin tab management (All Users Overview + Plan Catalog CRUD)
+- ✅ Admin page (All Users Overview table)
+- ✅ Discover page with admin catalog management (Create/Delete plans)
 - ✅ CI pipeline (GitHub Actions)
 - ✅ AI Usage documented in README.md
 
@@ -1066,4 +1105,4 @@ This project was developed entirely with AI assistance. The AI was used for:
 - **Testing** — generating xUnit test cases with Moq mocks covering success, failure, skip, and error scenarios
 - **Configuration** — EF Core setup, migration commands, Tailwind CSS integration, GitHub Actions CI
 
-All AI-generated output was reviewed, adapted, and verified via build (0 errors, 0 warnings) and test runs (32/32 passing — 13 backend xUnit + 19 frontend Vitest) before inclusion.
+All AI-generated output was reviewed, adapted, and verified via build (0 errors, 0 warnings) and test runs (41/41 passing — 17 backend xUnit + 24 frontend Vitest) before inclusion.

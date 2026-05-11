@@ -13,15 +13,18 @@ vi.mock('../services/api', () => {
   ]
   return {
     api: {
-      subscriptionPlans: { getAll: vi.fn(() => Promise.resolve(plans)) },
+      subscriptionPlans: {
+        getAll: vi.fn(() => Promise.resolve(plans)),
+        delete: vi.fn(() => Promise.resolve()),
+        create: vi.fn(() => Promise.resolve({ id: 5 })),
+      },
       subscriptions: { create: vi.fn(() => Promise.resolve({ id: 10 })) },
     },
   }
 })
 
-function renderDiscover(customerEmail = 'user@test.com') {
-  localStorage.setItem('halalbank_user', JSON.stringify({ email: customerEmail, role: 'Customer', customerId: 1 }))
-
+function renderDiscoverAsCustomer() {
+  localStorage.setItem('halalbank_user', JSON.stringify({ email: 'user@test.com', role: 'Customer', customerId: 1 }))
   return render(
     <MemoryRouter>
       <AuthProvider>
@@ -31,19 +34,30 @@ function renderDiscover(customerEmail = 'user@test.com') {
   )
 }
 
-describe('Discover Page', () => {
+function renderDiscoverAsAdmin() {
+  localStorage.setItem('halalbank_user', JSON.stringify({ email: 'admin@test.com', role: 'Admin' }))
+  return render(
+    <MemoryRouter>
+      <AuthProvider>
+        <Discover />
+      </AuthProvider>
+    </MemoryRouter>
+  )
+}
+
+describe('Discover Page - Customer', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.clearAllMocks()
   })
 
   it('should show loading state initially', () => {
-    renderDiscover()
+    renderDiscoverAsCustomer()
     expect(screen.getByText('Loading plans...')).toBeDefined()
   })
 
   it('should render plan cards after loading', async () => {
-    renderDiscover()
+    renderDiscoverAsCustomer()
 
     await waitFor(() => {
       expect(screen.getByText('Netflix Premium')).toBeDefined()
@@ -57,7 +71,7 @@ describe('Discover Page', () => {
   })
 
   it('should have Subscribe buttons enabled for Customer', async () => {
-    renderDiscover()
+    renderDiscoverAsCustomer()
 
     await waitFor(() => {
       const buttons = screen.getAllByText('Subscribe')
@@ -67,7 +81,7 @@ describe('Discover Page', () => {
   })
 
   it('should call subscriptions.create with customerId and plan data on Subscribe', async () => {
-    renderDiscover()
+    renderDiscoverAsCustomer()
 
     await waitFor(() => screen.getByText('Netflix Premium'))
 
@@ -86,7 +100,7 @@ describe('Discover Page', () => {
   })
 
   it('should show toast after successful subscribe', async () => {
-    renderDiscover()
+    renderDiscoverAsCustomer()
 
     await waitFor(() => screen.getByText('Netflix Premium'))
 
@@ -95,6 +109,138 @@ describe('Discover Page', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Subscribed to Netflix Premium!')).toBeDefined()
+    })
+  })
+
+  it('should NOT show Create New Plan button for Customer', async () => {
+    renderDiscoverAsCustomer()
+
+    await waitFor(() => {
+      expect(screen.getByText('Netflix Premium')).toBeDefined()
+    })
+
+    expect(screen.queryByText('Create New Plan')).toBeNull()
+  })
+
+  it('should NOT show Delete buttons for Customer', async () => {
+    renderDiscoverAsCustomer()
+
+    await waitFor(() => {
+      expect(screen.getByText('Netflix Premium')).toBeDefined()
+    })
+
+    expect(screen.queryAllByText('Delete').length).toBe(0)
+  })
+})
+
+describe('Discover Page - Admin', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+  })
+
+  it('should show loading state initially', () => {
+    renderDiscoverAsAdmin()
+    expect(screen.getByText('Loading plans...')).toBeDefined()
+  })
+
+  it('should render plan cards after loading', async () => {
+    renderDiscoverAsAdmin()
+
+    await waitFor(() => {
+      expect(screen.getByText('Netflix Premium')).toBeDefined()
+    })
+
+    expect(screen.getByText('Spotify')).toBeDefined()
+  })
+
+  it('should show Delete buttons instead of Subscribe for Admin', async () => {
+    renderDiscoverAsAdmin()
+
+    await waitFor(() => {
+      const deleteButtons = screen.getAllByText('Delete')
+      expect(deleteButtons.length).toBe(2)
+    })
+
+    expect(screen.queryByText('Subscribe')).toBeNull()
+  })
+
+  it('should show Create New Plan button for Admin', async () => {
+    renderDiscoverAsAdmin()
+
+    await waitFor(() => {
+      expect(screen.getByText('Netflix Premium')).toBeDefined()
+    })
+
+    expect(screen.getByText('Create New Plan')).toBeDefined()
+  })
+
+  it('should show form fields after clicking Create New Plan', async () => {
+    renderDiscoverAsAdmin()
+
+    await waitFor(() => screen.getByText('Netflix Premium'))
+
+    await userEvent.click(screen.getByText('Create New Plan'))
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Provider Name')).toBeDefined()
+    })
+
+    expect(screen.getByPlaceholderText('Category')).toBeDefined()
+    expect(screen.getByPlaceholderText('Price')).toBeDefined()
+    expect(screen.getByText('Add Plan')).toBeDefined()
+  })
+
+  it('should call plans.create when Admin adds a new plan', async () => {
+    renderDiscoverAsAdmin()
+
+    await waitFor(() => screen.getByText('Netflix Premium'))
+
+    await userEvent.click(screen.getByText('Create New Plan'))
+
+    await waitFor(() => screen.getByPlaceholderText('Provider Name'))
+
+    await userEvent.type(screen.getByPlaceholderText('Provider Name'), 'New Plan')
+    await userEvent.type(screen.getByPlaceholderText('Category'), 'Health')
+    await userEvent.type(screen.getByPlaceholderText('Price'), '29.99')
+    await userEvent.click(screen.getByText('Add Plan'))
+
+    await waitFor(() => {
+      expect(vi.mocked(api.subscriptionPlans.create).mock.calls.length).toBe(1)
+      const callArgs = vi.mocked(api.subscriptionPlans.create).mock.calls[0][0]
+      expect(callArgs.name).toBe('New Plan')
+      expect(callArgs.category).toBe('Health')
+      expect(callArgs.defaultPrice).toBe(29.99)
+      expect(callArgs.defaultBillingCycle).toBe('Monthly')
+    })
+  })
+
+  it('should call plans.delete when Admin clicks Delete', async () => {
+    renderDiscoverAsAdmin()
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Delete').length).toBe(2)
+    })
+
+    await userEvent.click(screen.getAllByText('Delete')[0])
+
+    await waitFor(() => {
+      expect(vi.mocked(api.subscriptionPlans.delete).mock.calls.length).toBe(1)
+      expect(vi.mocked(api.subscriptionPlans.delete).mock.calls[0][0]).toBe(1)
+    })
+  })
+
+  it('should show toast after successful delete', async () => {
+    renderDiscoverAsAdmin()
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Delete').length).toBe(2)
+    })
+
+    await userEvent.click(screen.getAllByText('Delete')[0])
+
+    await waitFor(() => {
+      expect(screen.getByText('Plan deleted')).toBeDefined()
     })
   })
 })

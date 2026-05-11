@@ -8,13 +8,11 @@ namespace HalalBank.Application.Services;
 public class PaymentService : IPaymentService
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IDebtService _debtService;
     private readonly IPaymentGateway _paymentGateway;
 
-    public PaymentService(IUnitOfWork unitOfWork, IDebtService debtService, IPaymentGateway paymentGateway)
+    public PaymentService(IUnitOfWork unitOfWork, IPaymentGateway paymentGateway)
     {
         _unitOfWork = unitOfWork;
-        _debtService = debtService;
         _paymentGateway = paymentGateway;
     }
 
@@ -48,7 +46,12 @@ public class PaymentService : IPaymentService
             return new DebtResponseDto { Amount = 0, DueDate = now, Period = $"{now.Year} {now.Month:D2}" };
         }
 
-        return await _debtService.QueryDebtAsync(subscription.Id, subscription.ProviderName);
+        return new DebtResponseDto
+        {
+            Amount = subscription.Price,
+            DueDate = subscription.NextPaymentDate,
+            Period = $"{now.Year} {now.Month:D2}"
+        };
     }
 
     public async Task<PaymentDto> PayAsync(CreatePaymentDto dto)
