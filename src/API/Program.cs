@@ -8,6 +8,7 @@ using HalalBank.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddUserSecrets<Program>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -24,9 +25,10 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPaymentGateway, MockPaymentGateway>();
 builder.Services.AddScoped<IExternalPaymentService, MockExternalPaymentService>();
 builder.Services.AddScoped<IPaymentTaskService, PaymentTaskService>();
-builder.Services.AddScoped<INotificationService, MockNotificationService>();
+builder.Services.AddScoped<INotificationService, EmailNotificationService>();
 builder.Services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddHostedService<ScheduledPaymentService>();
 builder.Services.AddHttpClient("MockBankApi", client =>
     client.BaseAddress = new Uri("http://mockbank.local"))
     .ConfigurePrimaryHttpMessageHandler(() => new MockBankMessageHandler());

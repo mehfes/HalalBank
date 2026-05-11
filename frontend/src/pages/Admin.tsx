@@ -180,7 +180,7 @@ export default function Admin() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-800">Process Overdue Payments</h2>
-              <p className="text-sm text-slate-500 mt-1">Check all overdue subscriptions across all users, query debt, and process payments automatically.</p>
+              <p className="text-sm text-slate-500 mt-1">Manual trigger — the system also runs this automatically every 6 hours via background service.</p>
             </div>
             <button
               onClick={handleTriggerPaymentCheck}
