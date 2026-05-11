@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import Navbar from '../components/Navbar'
+import PaymentHistoryModal from '../components/PaymentHistoryModal'
 
 interface Subscription {
   id: number
@@ -10,6 +11,7 @@ interface Subscription {
   subscriptionNumber: string
   providerName: string
   category: string
+  subscriptionType: string
   price: number
   billingCycle: string
   nextPaymentDate: string
@@ -23,6 +25,7 @@ export default function Dashboard() {
   const [showToast, setShowToast] = useState(false)
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
+  const [historySub, setHistorySub] = useState<{ id: number; name: string } | null>(null)
 
   useEffect(() => {
     if (location.state?.paymentSuccess) {
@@ -96,6 +99,7 @@ export default function Dashboard() {
                     <th className="pb-2 font-medium">Subscription #</th>
                     <th className="pb-2 font-medium">Provider</th>
                     <th className="pb-2 font-medium">Category</th>
+                    <th className="pb-2 font-medium">Type</th>
                     <th className="pb-2 font-medium">Amount</th>
                     <th className="pb-2 font-medium">Due Date</th>
                     <th className="pb-2 font-medium">Billing</th>
@@ -108,16 +112,25 @@ export default function Dashboard() {
                       <td className="py-2.5 text-slate-600 font-mono text-xs">{sub.subscriptionNumber}</td>
                       <td className="py-2.5 text-slate-800">{sub.providerName}</td>
                       <td className="py-2.5 text-slate-600">{sub.category}</td>
+                      <td className="py-2.5"><span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">{sub.subscriptionType}</span></td>
                       <td className="py-2.5 text-slate-800 font-medium">${sub.price.toFixed(2)}</td>
                       <td className="py-2.5 text-amber-700">{formatDate(sub.nextPaymentDate)}</td>
                       <td className="py-2.5 text-slate-600">{sub.billingCycle}</td>
                       <td className="py-2.5">
-                        <button
-                          onClick={() => navigate(`/payment-gateway/${sub.id}`)}
-                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
-                        >
-                          Pay
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigate(`/payment-gateway/${sub.id}`)}
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            Pay
+                          </button>
+                          <button
+                            onClick={() => setHistorySub({ id: sub.id, name: sub.providerName })}
+                            className="px-3 py-1 border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            History
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -142,6 +155,7 @@ export default function Dashboard() {
                     <th className="pb-2 font-medium">Subscription #</th>
                     <th className="pb-2 font-medium">Provider</th>
                     <th className="pb-2 font-medium">Category</th>
+                    <th className="pb-2 font-medium">Type</th>
                     <th className="pb-2 font-medium">Price</th>
                     <th className="pb-2 font-medium">Billing</th>
                     <th className="pb-2 font-medium">Next Payment</th>
@@ -155,6 +169,7 @@ export default function Dashboard() {
                       <td className="py-2.5 text-slate-600 font-mono text-xs">{sub.subscriptionNumber}</td>
                       <td className="py-2.5 text-slate-800">{sub.providerName}</td>
                       <td className="py-2.5 text-slate-600">{sub.category}</td>
+                      <td className="py-2.5"><span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">{sub.subscriptionType}</span></td>
                       <td className="py-2.5 text-slate-800 font-medium">${sub.price.toFixed(2)}</td>
                       <td className="py-2.5 text-slate-600">{sub.billingCycle}</td>
                       <td className={`py-2.5 ${new Date(sub.nextPaymentDate) <= new Date() ? 'text-red-600 font-medium' : 'text-slate-700'}`}>
@@ -166,12 +181,20 @@ export default function Dashboard() {
                         </span>
                       </td>
                       <td className="py-2.5">
-                        <button
-                          onClick={() => navigate(`/payment-gateway/${sub.id}`)}
-                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
-                        >
-                          Pay
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigate(`/payment-gateway/${sub.id}`)}
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            Pay
+                          </button>
+                          <button
+                            onClick={() => setHistorySub({ id: sub.id, name: sub.providerName })}
+                            className="px-3 py-1 border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            History
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -182,6 +205,14 @@ export default function Dashboard() {
         </section>
 
       </main>
+
+      {historySub && (
+        <PaymentHistoryModal
+          subscriptionId={historySub.id}
+          providerName={historySub.name}
+          onClose={() => setHistorySub(null)}
+        />
+      )}
     </div>
   )
 }

@@ -1061,7 +1061,7 @@ Push to `main` or open a PR targeting `main` → GitHub Actions triggers:
 |-------------|--------|-------------|
 | **Ödeme dönemi (Period) on Payment** | ✅ Implemented | Added `Period` field to Payment entity (`2026 05` format), DTOs, configuration, and mapping. Stored automatically on payment creation. |
 | **Abonelik numarası (Subscription Number)** | ✅ Implemented | Added to Subscription entity, DTOs, seed data (`SUB-48291` etc.), and auto-generated on create |
-| **Abonelik türü (Type) enum — Electricity, Water etc.** | ❌ Replaced with `Category` (string) | The user later re-specified the Subscription entity and `Category` is a free-text field instead of a constrained enum. |
+| **Abonelik türü (Type) enum — Electricity, Water etc.** | ✅ Implemented | Added `SubscriptionType` enum (Electricity, Water, Internet, Gsm, Streaming, Music, Software, Health, Education, Other) with string storage, configuration, and seed data. Exposed in API and frontend tables as a badge column. |
 | **Hatırlatma Mekanizması / Reminder endpoint** | ✅ Implemented | `POST /api/payment-task/send-reminders` sends email reminders for subscriptions due within 3 days |
 | **Bildirim Servisi / Notification Service (Email/SMS)** | ✅ Implemented (SMTP) | `EmailNotificationService` sends real HTML emails via SMTP (configurable in user-secrets). Falls back to console log if SMTP not configured. |
 | **ER Diagram** | ✅ Created | See `SYSTEM_DESIGN.md` — Mermaid ER diagram with all entities, relationships, keys, and cascade rules |
@@ -1130,3 +1130,90 @@ This project was developed entirely with AI assistance. The AI was used for:
 - **Configuration** — EF Core setup, migration commands, Tailwind CSS integration, GitHub Actions CI
 
 All AI-generated output was reviewed, adapted, and verified via build (0 errors, 0 warnings) and test runs (41/41 passing — 17 backend xUnit + 24 frontend Vitest) before inclusion.
+
+---
+
+## Step 18 — Payment History Modal
+
+**Prompt:** Add payment history view per subscription on the Dashboard.
+
+- Created `PaymentHistoryModal` component at `frontend/src/components/PaymentHistoryModal.tsx`
+- Added "History" button next to the "Pay" button on every subscription row (both Upcoming Payments and My Subscriptions tables)
+- Modal fetches `GET /api/payments/by-subscription/{subscriptionId}` and displays: #, Amount, Date, Period, Status
+- Shows "No payments recorded yet" empty state
+- Loading spinner while fetching
+- Cancel/delete subscriptions also available from Admin panel
+
+---
+
+## Step 19 — Subscription Type Enum
+
+**Prompt:** Add proper `SubscriptionType` enum to match project spec requirement.
+
+### Domain
+- `src/Domain/Enums/SubscriptionType.cs` — Electricity, Water, Internet, Gsm, Streaming, Music, Software, Health, Education, Other
+
+### Infrastructure
+- Added `SubscriptionType` to `SubscriptionConfiguration` (stored as string, max 50)
+- Updated seed data: Netflix → Streaming, Spotify → Music, Electricity Bill → Electricity, Internet → Internet, Cloud Storage → Software
+
+### Application
+- Added `SubscriptionType` to `SubscriptionDto`, `CreateSubscriptionDto`, `UpdateSubscriptionDto`
+- Updated `MappingProfile` to map `SubscriptionType.ToString()` and parse with fallback to `Other`
+
+### API
+- New migration: `AddSubscriptionType`
+
+### Frontend
+- Added "Type" badge column (indigo) to Dashboard and Admin tables
+- Discover page auto-infers `subscriptionType` from plan category when subscribing
+
+### Tests
+- Backend: 17/17 passing (no changes needed — existing mocks auto-handle new field with default)
+- Frontend: 24/24 passing
+
+---
+
+## Step 20 — Payment Gateway Card Form
+
+**Prompt:** Enhance payment gateway with realistic card input fields and validation.
+
+- Added **Cardholder Name** text input
+- Added **Card Number** input with auto-formatting (groups of 4 digits)
+- Added **Luhn algorithm** validation for card number
+- Added **Brand detection** (VISA, MC, AMEX) with highlight on matching brand icon
+- Added **Expiry Date** input with MM/YY mask and expiration check
+- Added **CVV** input (3 digits for VISA/MC, 4 for AMEX)
+- All fields have inline validation errors on blur
+- Confirm button disabled until all fields are valid
+
+---
+
+## Step 21 — Form Validation Polish
+
+**Prompt:** Add real-time validation and password confirmation to auth forms.
+
+### Login (`Login.tsx`)
+- Email format validation (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`)
+- Password minimum length (6 chars)
+- Red border + error messages on blur
+- Submit button disabled until form is valid
+
+### Register (`Register.tsx`)
+- First name / Last name required validation
+- Email format validation
+- Password minimum length (6 chars)
+- **Password confirmation** field with "Passwords do not match" check
+- Red border + error messages per field on blur
+- Submit button disabled until all fields valid
+
+---
+
+## Final Test Results
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| Backend (xUnit) | 17/17 | ✅ All passing |
+| Frontend (Vitest) | 24/24 | ✅ All passing |
+| Backend build | — | 0 errors, 0 warnings |
+| Frontend build | — | 0 errors, 0 warnings |

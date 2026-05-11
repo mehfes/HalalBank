@@ -5,15 +5,38 @@ import { useAuth } from '../contexts/AuthContext'
 export default function Register() {
   const navigate = useNavigate()
   const { register } = useAuth()
-  const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [touched, setTouched] = useState({
+    firstName: false, lastName: false, email: false, password: false, confirmPassword: false
+  })
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  const firstNameError = touched.firstName && !firstName.trim() ? 'First name is required' : ''
+  const lastNameError = touched.lastName && !lastName.trim() ? 'Last name is required' : ''
+  const emailError = touched.email && !email.trim() ? 'Email is required' :
+    touched.email && !emailRegex.test(email) ? 'Invalid email format' : ''
+  const passwordError = touched.password && !password ? 'Password is required' :
+    touched.password && password.length < 6 ? 'Password must be at least 6 characters' : ''
+  const confirmError = touched.confirmPassword && !confirmPassword ? 'Please confirm your password' :
+    touched.confirmPassword && confirmPassword !== password ? 'Passwords do not match' : ''
+
+  const isValid =
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    emailRegex.test(email) &&
+    password.length >= 6 &&
+    confirmPassword === password
 
   const handleSubmit = async () => {
-    if (!email.trim() || !password.trim() || !firstName.trim() || !lastName.trim()) return
+    setTouched({ firstName: true, lastName: true, email: true, password: true, confirmPassword: true })
+    if (!isValid) return
     setError('')
     setLoading(true)
     try {
@@ -25,6 +48,11 @@ export default function Register() {
       setLoading(false)
     }
   }
+
+  const inputClass = (err: string) =>
+    `w-full border ${err ? 'border-red-400' : 'border-slate-300'} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${err ? 'focus:ring-red-400' : 'focus:ring-emerald-500'} transition-colors`
+
+  const onBlur = (field: string) => () => setTouched(t => ({ ...t, [field]: true }))
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -40,9 +68,11 @@ export default function Register() {
               type="text"
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
+              onBlur={onBlur('firstName')}
               placeholder="John"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className={inputClass(firstNameError)}
             />
+            {firstNameError && <p className="text-xs text-red-500 mt-1">{firstNameError}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
@@ -50,9 +80,11 @@ export default function Register() {
               type="text"
               value={lastName}
               onChange={e => setLastName(e.target.value)}
+              onBlur={onBlur('lastName')}
               placeholder="Doe"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className={inputClass(lastNameError)}
             />
+            {lastNameError && <p className="text-xs text-red-500 mt-1">{lastNameError}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
@@ -60,9 +92,11 @@ export default function Register() {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              onBlur={onBlur('email')}
               placeholder="you@example.com"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className={inputClass(emailError)}
             />
+            {emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
@@ -70,18 +104,30 @@ export default function Register() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              onBlur={onBlur('password')}
+              placeholder="At least 6 characters"
+              className={inputClass(passwordError)}
             />
+            {passwordError && <p className="text-xs text-red-500 mt-1">{passwordError}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              onBlur={onBlur('confirmPassword')}
+              placeholder="Re-enter your password"
+              className={inputClass(confirmError)}
+            />
+            {confirmError && <p className="text-xs text-red-500 mt-1">{confirmError}</p>}
           </div>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-              {error}
-            </div>
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>
           )}
           <button
             onClick={handleSubmit}
-            disabled={!email.trim() || !password.trim() || !firstName.trim() || !lastName.trim() || loading}
+            disabled={!isValid || loading}
             className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             {loading ? 'Creating account...' : 'Register'}

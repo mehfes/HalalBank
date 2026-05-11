@@ -9,6 +9,7 @@ interface Subscription {
   subscriptionNumber: string
   providerName: string
   category: string
+  subscriptionType: string
   price: number
   billingCycle: string
   nextPaymentDate: string
@@ -109,6 +110,7 @@ export default function Admin() {
                     <th className="pb-2 font-medium">Subscription #</th>
                     <th className="pb-2 font-medium">Provider</th>
                     <th className="pb-2 font-medium">Category</th>
+                    <th className="pb-2 font-medium">Type</th>
                     <th className="pb-2 font-medium">Price</th>
                     <th className="pb-2 font-medium">Billing</th>
                     <th className="pb-2 font-medium">Next Payment</th>
@@ -123,6 +125,7 @@ export default function Admin() {
                       <td className="py-2.5 text-slate-600 font-mono text-xs">{sub.subscriptionNumber}</td>
                       <td className="py-2.5 text-slate-800">{sub.providerName}</td>
                       <td className="py-2.5 text-slate-600">{sub.category}</td>
+                      <td className="py-2.5"><span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">{sub.subscriptionType}</span></td>
                       <td className="py-2.5 text-slate-800 font-medium">${sub.price.toFixed(2)}</td>
                       <td className="py-2.5 text-slate-600">{sub.billingCycle}</td>
                       <td className={`py-2.5 ${new Date(sub.nextPaymentDate) <= new Date() ? 'text-red-600 font-medium' : 'text-slate-700'}`}>

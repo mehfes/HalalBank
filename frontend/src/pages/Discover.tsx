@@ -34,6 +34,20 @@ export default function Discover() {
 
   useEffect(() => { loadPlans() }, [])
 
+  const inferType = (category: string): string => {
+    const cat = category.toLowerCase()
+    if (cat.includes('electr') || cat.includes('utility')) return 'Electricity'
+    if (cat.includes('water')) return 'Water'
+    if (cat.includes('internet') || cat.includes('network')) return 'Internet'
+    if (cat.includes('gsm') || cat.includes('mobile') || cat.includes('phone')) return 'Gsm'
+    if (cat.includes('stream') || cat.includes('tv') || cat.includes('video')) return 'Streaming'
+    if (cat.includes('music') || cat.includes('audio')) return 'Music'
+    if (cat.includes('soft') || cat.includes('cloud') || cat.includes('storage')) return 'Software'
+    if (cat.includes('health') || cat.includes('gym') || cat.includes('fitness')) return 'Health'
+    if (cat.includes('edu')) return 'Education'
+    return 'Other'
+  }
+
   const handleSubscribe = async (plan: Plan) => {
     if (!user || user.role !== 'Customer' || !user.customerId) return
     try {
@@ -42,6 +56,7 @@ export default function Discover() {
         subscriptionNumber: '',
         providerName: plan.name,
         category: plan.category,
+        subscriptionType: inferType(plan.category),
         price: plan.defaultPrice,
         billingCycle: plan.defaultBillingCycle,
         nextPaymentDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),

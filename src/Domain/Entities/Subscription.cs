@@ -9,6 +9,7 @@ public class Subscription
     public string SubscriptionNumber { get; set; } = string.Empty;
     public string ProviderName { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
+    public SubscriptionType SubscriptionType { get; set; } = SubscriptionType.Other;
     public decimal Price { get; set; }
     public BillingCycle BillingCycle { get; set; }
     public DateTime NextPaymentDate { get; set; }

@@ -38,6 +38,7 @@ public static class MappingProfile
             SubscriptionNumber = subscription.SubscriptionNumber,
             ProviderName = subscription.ProviderName,
             Category = subscription.Category,
+            SubscriptionType = subscription.SubscriptionType.ToString(),
             Price = subscription.Price,
             BillingCycle = subscription.BillingCycle.ToString(),
             NextPaymentDate = subscription.NextPaymentDate,
@@ -53,6 +54,7 @@ public static class MappingProfile
             SubscriptionNumber = dto.SubscriptionNumber,
             ProviderName = dto.ProviderName,
             Category = dto.Category,
+            SubscriptionType = Enum.TryParse<SubscriptionType>(dto.SubscriptionType, true, out var st) ? st : SubscriptionType.Other,
             Price = dto.Price,
             BillingCycle = Enum.Parse<BillingCycle>(dto.BillingCycle),
             NextPaymentDate = dto.NextPaymentDate

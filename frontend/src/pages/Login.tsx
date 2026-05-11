@@ -9,9 +9,20 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [touched, setTouched] = useState({ email: false, password: false })
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const emailError = touched.email && !email.trim() ? 'Email is required' :
+    touched.email && !emailRegex.test(email) ? 'Invalid email format' : ''
+
+  const passwordError = touched.password && !password.trim() ? 'Password is required' :
+    touched.password && password.length < 6 ? 'Password must be at least 6 characters' : ''
+
+  const isValid = emailRegex.test(email) && password.length >= 6
 
   const handleSubmit = async () => {
-    if (!email.trim() || !password.trim()) return
+    setTouched({ email: true, password: true })
+    if (!isValid) return
     setError('')
     setLoading(true)
     try {
@@ -23,6 +34,9 @@ export default function Login() {
       setLoading(false)
     }
   }
+
+  const inputClass = (err: string) =>
+    `w-full border ${err ? 'border-red-400' : 'border-slate-300'} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${err ? 'focus:ring-red-400' : 'focus:ring-emerald-500'} transition-colors`
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -38,10 +52,12 @@ export default function Login() {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              onBlur={() => setTouched(t => ({ ...t, email: true }))}
               placeholder="you@example.com"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className={inputClass(emailError)}
             />
-            <p className="text-xs text-slate-400 mt-1">Try <span className="font-mono">john.doe@email.com</span> (Customer) or <span className="font-mono">admin@test.com</span> (Admin)</p>
+            {emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
+            {!emailError && <p className="text-xs text-slate-400 mt-1">Try <span className="font-mono">john.doe@email.com</span> (Customer) or <span className="font-mono">admin@test.com</span> (Admin)</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
@@ -49,18 +65,18 @@ export default function Login() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
+              onBlur={() => setTouched(t => ({ ...t, password: true }))}
               placeholder="••••••••"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className={inputClass(passwordError)}
             />
+            {passwordError && <p className="text-xs text-red-500 mt-1">{passwordError}</p>}
           </div>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-              {error}
-            </div>
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>
           )}
           <button
             onClick={handleSubmit}
-            disabled={!email.trim() || !password.trim() || loading}
+            disabled={!isValid || loading}
             className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             {loading ? 'Signing in...' : 'Sign In'}

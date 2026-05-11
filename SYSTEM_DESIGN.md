@@ -37,6 +37,7 @@ erDiagram
         string SubscriptionNumber "SUB-XXXXX"
         string ProviderName "max 200"
         string Category "max 100"
+        string SubscriptionType "Electricity|Water|Internet|Gsm|Streaming|Music|Software|Health|Education|Other"
         decimal Price "decimal(18,2)"
         string BillingCycle "Monthly|Yearly"
         datetime NextPaymentDate
@@ -114,6 +115,7 @@ erDiagram
   "subscriptionNumber": "",           // auto-generated if empty
   "providerName": "Netflix",
   "category": "Streaming",
+  "subscriptionType": "Streaming",
   "price": 15.99,
   "billingCycle": "Monthly",
   "nextPaymentDate": "2026-06-15T00:00:00Z"
@@ -124,7 +126,8 @@ erDiagram
 ```json
 {
   "price": 19.99,
-  "status": "Passive"
+  "status": "Passive",
+  "subscriptionType": "Passive"
 }
 ```
 
