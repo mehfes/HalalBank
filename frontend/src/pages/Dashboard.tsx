@@ -1,19 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 import Navbar from '../components/Navbar'
-
-interface Customer {
-  id: number
-  firstName: string
-  lastName: string
-  email: string
-}
-
-interface DashboardData {
-  totalActiveSubscriptions: number
-  upcomingPayments: Subscription[]
-}
 
 interface Subscription {
   id: number
@@ -38,15 +27,12 @@ interface PaymentTaskResult {
 export default function Dashboard() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user } = useAuth()
   const [showToast, setShowToast] = useState(false)
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | ''>('')
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [taskResult, setTaskResult] = useState<PaymentTaskResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [taskLoading, setTaskLoading] = useState(false)
-  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false)
 
   useEffect(() => {
     if (location.state?.paymentSuccess) {
@@ -57,26 +43,24 @@ export default function Dashboard() {
   }, [location.state])
 
   useEffect(() => {
-    Promise.all([
-      api.customers.getAll(),
-      api.dashboard.get(),
-    ]).then(([customers, dashboard]) => {
-      setCustomers(customers)
-      setDashboard(dashboard)
-    }).catch(console.error).finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    if (selectedCustomerId === '') {
-      setSubscriptions([])
-      return
+    if (!user) return
+    if (user.role === 'Customer' && user.customerId) {
+      setLoading(true)
+      api.subscriptions.getByCustomerId(user.customerId)
+        .then(setSubscriptions)
+        .catch(console.error)
+        .finally(() => setLoading(false))
+    } else {
+      setLoading(false)
     }
-    setSubscriptionsLoading(true)
-    api.subscriptions.getByCustomerId(Number(selectedCustomerId))
-      .then(setSubscriptions)
-      .catch(console.error)
-      .finally(() => setSubscriptionsLoading(false))
-  }, [selectedCustomerId])
+  }, [user])
+
+  const activeSubscriptions = subscriptions.filter(s => s.status === 'Active')
+  const now = new Date()
+  const sevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const upcomingPayments = subscriptions.filter(s =>
+    s.status === 'Active' && new Date(s.nextPaymentDate) >= now && new Date(s.nextPaymentDate) <= sevenDays
+  )
 
   const handleTriggerPaymentCheck = async () => {
     setTaskLoading(true)
@@ -84,8 +68,10 @@ export default function Dashboard() {
     try {
       const result = await api.paymentTask.processOverdue()
       setTaskResult(result)
-      const up = await api.dashboard.get()
-      setDashboard(up)
+      if (user?.role === 'Customer' && user?.customerId) {
+        const updated = await api.subscriptions.getByCustomerId(user.customerId)
+        setSubscriptions(updated)
+      }
     } catch (err: any) {
       setTaskResult({ checkedCount: 0, paidCount: 0, failedCount: 0, skippedCount: 0, details: [`Error: ${err.message}`] })
     } finally {
@@ -119,15 +105,15 @@ export default function Dashboard() {
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Total Active Subscriptions</p>
-            <p className="mt-2 text-4xl font-bold text-emerald-600">{dashboard?.totalActiveSubscriptions ?? 0}</p>
+            <p className="mt-2 text-4xl font-bold text-emerald-600">{activeSubscriptions.length}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Upcoming Payments (7 days)</p>
-            <p className="mt-2 text-4xl font-bold text-amber-600">{dashboard?.upcomingPayments.length ?? 0}</p>
+            <p className="mt-2 text-4xl font-bold text-amber-600">{upcomingPayments.length}</p>
           </div>
         </section>
 
-        {dashboard && dashboard.upcomingPayments.length > 0 && (
+        {upcomingPayments.length > 0 && (
           <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h2 className="text-lg font-semibold text-slate-800 mb-4">Upcoming Payments</h2>
             <div className="overflow-x-auto">
@@ -144,7 +130,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dashboard.upcomingPayments.map(sub => (
+                  {upcomingPayments.map(sub => (
                     <tr key={sub.id} className="border-b border-slate-100 last:border-0">
                       <td className="py-2.5 text-slate-600 font-mono text-xs">{sub.subscriptionNumber}</td>
                       <td className="py-2.5 text-slate-800">{sub.providerName}</td>
@@ -169,33 +155,13 @@ export default function Dashboard() {
         )}
 
         <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <h2 className="text-lg font-semibold text-slate-800">Customer Subscriptions</h2>
-            <select
-              value={selectedCustomerId}
-              onChange={e => setSelectedCustomerId(e.target.value === '' ? '' : Number(e.target.value))}
-              className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            >
-              <option value="">Select a customer...</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>{c.firstName} {c.lastName} ({c.email})</option>
-              ))}
-            </select>
-          </div>
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">My Subscriptions</h2>
 
-          {selectedCustomerId === '' && (
-            <p className="text-slate-400 text-sm text-center py-8">Select a customer to view their subscriptions.</p>
+          {subscriptions.length === 0 && (
+            <p className="text-slate-400 text-sm text-center py-8">No subscriptions found.</p>
           )}
 
-          {subscriptionsLoading && (
-            <p className="text-slate-400 text-sm text-center py-8">Loading subscriptions...</p>
-          )}
-
-          {!subscriptionsLoading && selectedCustomerId !== '' && subscriptions.length === 0 && (
-            <p className="text-slate-400 text-sm text-center py-8">This customer has no subscriptions yet.</p>
-          )}
-
-          {!subscriptionsLoading && subscriptions.length > 0 && (
+          {subscriptions.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

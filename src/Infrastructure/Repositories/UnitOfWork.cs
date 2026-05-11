@@ -9,6 +9,7 @@ public class UnitOfWork : IUnitOfWork
     private ICustomerRepository? _customers;
     private ISubscriptionRepository? _subscriptions;
     private IPaymentRepository? _payments;
+    private ISubscriptionPlanRepository? _subscriptionPlans;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -23,6 +24,9 @@ public class UnitOfWork : IUnitOfWork
 
     public IPaymentRepository Payments =>
         _payments ??= new PaymentRepository(_context);
+
+    public ISubscriptionPlanRepository SubscriptionPlans =>
+        _subscriptionPlans ??= new SubscriptionPlanRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
         await _context.SaveChangesAsync(cancellationToken);

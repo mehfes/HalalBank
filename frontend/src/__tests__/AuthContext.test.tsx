@@ -21,7 +21,7 @@ describe('AuthContext', () => {
     expect(result.current.user).toBeNull()
   })
 
-  it('should set role to Admin for admin@test.com', () => {
+  it('should set role to Admin for admin@test.com with no customerId', () => {
     const { result } = renderAuthHook()
 
     act(() => result.current.login('admin@test.com'))
@@ -29,12 +29,12 @@ describe('AuthContext', () => {
     expect(result.current.user).toEqual({ email: 'admin@test.com', role: 'Admin' })
   })
 
-  it('should set role to Customer for any other email', () => {
+  it('should set role to Customer with customerId=1 for any other email', () => {
     const { result } = renderAuthHook()
 
     act(() => result.current.login('user@example.com'))
 
-    expect(result.current.user).toEqual({ email: 'user@example.com', role: 'Customer' })
+    expect(result.current.user).toEqual({ email: 'user@example.com', role: 'Customer', customerId: 1 })
   })
 
   it('should persist user to localStorage after login', () => {
@@ -44,6 +44,15 @@ describe('AuthContext', () => {
 
     const stored = JSON.parse(localStorage.getItem('halalbank_user')!)
     expect(stored).toEqual({ email: 'admin@test.com', role: 'Admin' })
+  })
+
+  it('should persist Customer with customerId to localStorage', () => {
+    const { result } = renderAuthHook()
+
+    act(() => result.current.login('user@test.com'))
+
+    const stored = JSON.parse(localStorage.getItem('halalbank_user')!)
+    expect(stored).toEqual({ email: 'user@test.com', role: 'Customer', customerId: 1 })
   })
 
   it('should clear user on logout', () => {

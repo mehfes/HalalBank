@@ -80,4 +80,27 @@ public static class MappingProfile
             Status = PaymentStatus.Success
         };
     }
+
+    public static SubscriptionPlanDto ToDto(this SubscriptionPlan plan)
+    {
+        return new SubscriptionPlanDto
+        {
+            Id = plan.Id,
+            Name = plan.Name,
+            Category = plan.Category,
+            DefaultPrice = plan.DefaultPrice,
+            DefaultBillingCycle = plan.DefaultBillingCycle
+        };
+    }
+
+    public static SubscriptionPlan ToEntity(this CreateSubscriptionPlanDto dto)
+    {
+        return new SubscriptionPlan
+        {
+            Name = dto.Name,
+            Category = dto.Category,
+            DefaultPrice = dto.DefaultPrice,
+            DefaultBillingCycle = dto.DefaultBillingCycle
+        };
+    }
 }

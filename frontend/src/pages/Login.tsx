@@ -31,7 +31,7 @@ export default function Login() {
               placeholder="you@example.com"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
-            <p className="text-xs text-slate-400 mt-1">Use <span className="font-mono">admin@test.com</span> for Admin access</p>
+            <p className="text-xs text-slate-400 mt-1">Try <span className="font-mono">user@test.com</span> (Customer) or <span className="font-mono">admin@test.com</span> (Admin)</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>

@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 interface User {
   email: string
   role: 'Admin' | 'Customer'
+  customerId?: number
 }
 
 interface AuthContextType {
@@ -28,8 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const login = (email: string) => {
-    const role = email === 'admin@test.com' ? 'Admin' : 'Customer'
-    setUser({ email, role })
+    if (email === 'admin@test.com') {
+      setUser({ email, role: 'Admin' })
+    } else {
+      setUser({ email, role: 'Customer', customerId: 1 })
+    }
   }
 
   const logout = () => {
