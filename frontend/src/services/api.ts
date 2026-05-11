@@ -7,7 +7,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }))
-    throw new Error(error.error)
+    throw new Error(error.error || 'Request failed')
   }
   return response.json()
 }
@@ -33,5 +33,11 @@ export const api = {
     getBySubscriptionId: (subscriptionId: number) => request<any[]>(`/payments/by-subscription/${subscriptionId}`),
     queryDebt: (subscriptionId: number) => request<any>(`/payments/query-debt/${subscriptionId}`, { method: 'POST' }),
     pay: (data: any) => request<any>('/payments/pay', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  dashboard: {
+    get: () => request<{ totalActiveSubscriptions: number; upcomingPayments: any[] }>('/dashboard'),
+  },
+  paymentTask: {
+    processOverdue: () => request<any>('/payment-task/process-overdue', { method: 'POST' }),
   },
 }

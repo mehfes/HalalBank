@@ -7,6 +7,8 @@ public interface ISubscriptionService
     Task<SubscriptionDto?> GetByIdAsync(int id);
     Task<IEnumerable<SubscriptionDto>> GetByCustomerIdAsync(int customerId);
     Task<IEnumerable<SubscriptionDto>> GetAllAsync();
+    Task<int> GetActiveCountAsync();
+    Task<IEnumerable<SubscriptionDto>> GetUpcomingPaymentsAsync(int daysAhead);
     Task<SubscriptionDto> CreateAsync(CreateSubscriptionDto dto);
     Task UpdateAsync(int id, UpdateSubscriptionDto dto);
     Task DeleteAsync(int id);

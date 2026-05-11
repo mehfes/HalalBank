@@ -1,4 +1,5 @@
 using HalalBank.Domain.Entities;
+using HalalBank.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,5 +20,13 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
             .WithMany(c => c.Subscriptions)
             .HasForeignKey(s => s.CustomerId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasData(
+            new Subscription { Id = 1, CustomerId = 1, ProviderName = "Netflix", Category = "Streaming", Price = 15.99m, BillingCycle = BillingCycle.Monthly, NextPaymentDate = new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Utc), Status = SubscriptionStatus.Active },
+            new Subscription { Id = 2, CustomerId = 1, ProviderName = "Spotify", Category = "Music", Price = 9.99m, BillingCycle = BillingCycle.Monthly, NextPaymentDate = new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Utc), Status = SubscriptionStatus.Active },
+            new Subscription { Id = 3, CustomerId = 2, ProviderName = "Electricity Bill", Category = "Utilities", Price = 120.00m, BillingCycle = BillingCycle.Monthly, NextPaymentDate = new DateTime(2026, 5, 11, 0, 0, 0, DateTimeKind.Utc), Status = SubscriptionStatus.Active },
+            new Subscription { Id = 4, CustomerId = 2, ProviderName = "Internet", Category = "Utilities", Price = 59.99m, BillingCycle = BillingCycle.Monthly, NextPaymentDate = new DateTime(2026, 5, 11, 0, 0, 0, DateTimeKind.Utc), Status = SubscriptionStatus.Active },
+            new Subscription { Id = 5, CustomerId = 3, ProviderName = "Cloud Storage", Category = "Software", Price = 99.99m, BillingCycle = BillingCycle.Yearly, NextPaymentDate = new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Utc), Status = SubscriptionStatus.Active }
+        );
     }
 }

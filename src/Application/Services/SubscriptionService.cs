@@ -27,6 +27,16 @@ public class SubscriptionService : ISubscriptionService
         return subscriptions.Select(s => s.ToDto());
     }
 
+    public async Task<int> GetActiveCountAsync() =>
+        await _unitOfWork.Subscriptions.GetActiveCountAsync();
+
+    public async Task<IEnumerable<SubscriptionDto>> GetUpcomingPaymentsAsync(int daysAhead)
+    {
+        var now = DateTime.UtcNow;
+        var subscriptions = await _unitOfWork.Subscriptions.GetUpcomingPaymentsAsync(now, now.AddDays(daysAhead));
+        return subscriptions.Select(s => s.ToDto());
+    }
+
     public async Task<IEnumerable<SubscriptionDto>> GetAllAsync()
     {
         var subscriptions = await _unitOfWork.Subscriptions.GetAllAsync();

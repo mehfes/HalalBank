@@ -25,6 +25,14 @@ public class SubscriptionRepository : ISubscriptionRepository
             .Where(s => s.Status == Domain.Enums.SubscriptionStatus.Active && s.NextPaymentDate <= currentDate)
             .ToListAsync();
 
+    public async Task<int> GetActiveCountAsync() =>
+        await _context.Subscriptions.CountAsync(s => s.Status == Domain.Enums.SubscriptionStatus.Active);
+
+    public async Task<IEnumerable<Subscription>> GetUpcomingPaymentsAsync(DateTime from, DateTime to) =>
+        await _context.Subscriptions
+            .Where(s => s.Status == Domain.Enums.SubscriptionStatus.Active && s.NextPaymentDate >= from && s.NextPaymentDate <= to)
+            .ToListAsync();
+
     public async Task<IEnumerable<Subscription>> GetAllAsync() =>
         await _context.Subscriptions.Include(s => s.Customer).ToListAsync();
 
