@@ -8,4 +8,5 @@ public interface IPaymentRepository
     Task<IEnumerable<Payment>> GetBySubscriptionIdAsync(int subscriptionId);
     Task<IEnumerable<Payment>> GetAllAsync();
     Task<Payment> AddAsync(Payment payment);
+    Task<bool> HasSuccessfulPaymentForPeriodAsync(int subscriptionId, int year, int month);
 }

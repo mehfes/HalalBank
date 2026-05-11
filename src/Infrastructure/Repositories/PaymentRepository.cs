@@ -28,4 +28,13 @@ public class PaymentRepository : IPaymentRepository
         await _context.Payments.AddAsync(payment);
         return payment;
     }
+
+    public async Task<bool> HasSuccessfulPaymentForPeriodAsync(int subscriptionId, int year, int month)
+    {
+        return await _context.Payments.AnyAsync(p =>
+            p.SubscriptionId == subscriptionId &&
+            p.Status == Domain.Enums.PaymentStatus.Success &&
+            p.PaymentDate.Year == year &&
+            p.PaymentDate.Month == month);
+    }
 }

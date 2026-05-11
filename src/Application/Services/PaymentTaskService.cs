@@ -28,7 +28,7 @@ public class PaymentTaskService : IPaymentTaskService
         {
             try
             {
-                var debt = await _externalPaymentService.CheckDebtAsync(subscription.Id);
+                var debt = await _externalPaymentService.CheckDebtAsync(subscription.Id, subscription.Price);
 
                 if (debt.Amount <= 0)
                 {

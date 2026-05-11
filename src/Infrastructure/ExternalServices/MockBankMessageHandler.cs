@@ -13,7 +13,8 @@ public class MockBankMessageHandler : HttpMessageHandler
 
         if (request.RequestUri?.AbsolutePath.Contains("/debt", StringComparison.OrdinalIgnoreCase) == true)
         {
-            var amount = _random.Next(3) == 0 ? 0 : Math.Round((decimal)(_random.NextDouble() * 1000 + 50), 2);
+            var segments = request.RequestUri.AbsolutePath.TrimEnd('/').Split('/');
+            var amount = segments.Length >= 4 && decimal.TryParse(segments[^1], out var parsed) ? parsed : 0m;
             var debtResponse = new { amount };
             return new HttpResponseMessage(HttpStatusCode.OK)
             {

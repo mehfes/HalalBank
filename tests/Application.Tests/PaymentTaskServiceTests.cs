@@ -52,7 +52,7 @@ public class PaymentTaskServiceTests
             .ReturnsAsync(new List<Subscription> { subscription });
 
         _externalPaymentServiceMock
-            .Setup(s => s.CheckDebtAsync(subscription.Id))
+            .Setup(s => s.CheckDebtAsync(subscription.Id, subscription.Price))
             .ReturnsAsync(new CheckDebtResponse { Amount = 15.99m });
 
         _externalPaymentServiceMock
@@ -104,7 +104,7 @@ public class PaymentTaskServiceTests
             .ReturnsAsync(new List<Subscription> { subscription });
 
         _externalPaymentServiceMock
-            .Setup(s => s.CheckDebtAsync(subscription.Id))
+            .Setup(s => s.CheckDebtAsync(subscription.Id, subscription.Price))
             .ReturnsAsync(new CheckDebtResponse { Amount = 9.99m });
 
         _externalPaymentServiceMock
@@ -146,7 +146,7 @@ public class PaymentTaskServiceTests
             .ReturnsAsync(new List<Subscription> { subscription });
 
         _externalPaymentServiceMock
-            .Setup(s => s.CheckDebtAsync(subscription.Id))
+            .Setup(s => s.CheckDebtAsync(subscription.Id, subscription.Price))
             .ReturnsAsync(new CheckDebtResponse { Amount = 0 });
 
         // Act
@@ -185,7 +185,7 @@ public class PaymentTaskServiceTests
             .ReturnsAsync(new List<Subscription> { subscription });
 
         _externalPaymentServiceMock
-            .Setup(s => s.CheckDebtAsync(subscription.Id))
+            .Setup(s => s.CheckDebtAsync(subscription.Id, subscription.Price))
             .ThrowsAsync(new HttpRequestException("Service unavailable"));
 
         // Act
@@ -224,7 +224,7 @@ public class PaymentTaskServiceTests
             .ReturnsAsync(new List<Subscription> { subscription });
 
         _externalPaymentServiceMock
-            .Setup(s => s.CheckDebtAsync(subscription.Id))
+            .Setup(s => s.CheckDebtAsync(subscription.Id, subscription.Price))
             .ReturnsAsync(new CheckDebtResponse { Amount = 99.99m });
 
         _externalPaymentServiceMock
@@ -262,7 +262,7 @@ public class PaymentTaskServiceTests
         result.FailedCount.Should().Be(0);
         result.SkippedCount.Should().Be(0);
 
-        _externalPaymentServiceMock.Verify(s => s.CheckDebtAsync(It.IsAny<int>()), Times.Never);
+        _externalPaymentServiceMock.Verify(s => s.CheckDebtAsync(It.IsAny<int>(), It.IsAny<decimal>()), Times.Never);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }

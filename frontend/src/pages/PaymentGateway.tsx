@@ -25,11 +25,17 @@ export default function PaymentGateway() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const [alreadyPaid, setAlreadyPaid] = useState(false)
 
   useEffect(() => {
     if (!subscriptionId) return
     api.payments.queryDebt(Number(subscriptionId))
-      .then(setDebt)
+      .then(data => {
+        if (data.amount === 0) {
+          setAlreadyPaid(true)
+        }
+        setDebt(data)
+      })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
   }, [subscriptionId])
@@ -49,7 +55,11 @@ export default function PaymentGateway() {
         setError('Payment was declined by the bank. Please try again.')
       }
     } catch (err: any) {
-      setError(err.message || 'Payment failed.')
+      if (err.message.includes('Already paid')) {
+        setAlreadyPaid(true)
+      } else {
+        setError(err.message || 'Payment failed.')
+      }
     } finally {
       setProcessing(false)
     }
@@ -92,7 +102,14 @@ export default function PaymentGateway() {
             </div>
           )}
 
-          {debt && !done && (
+          {alreadyPaid && (
+            <div className="bg-emerald-100 border-2 border-emerald-500 text-emerald-800 rounded-xl px-6 py-5 text-center">
+              <p className="text-lg font-bold">Already Paid for this Period</p>
+              <p className="text-sm mt-1">This subscription has already been paid for {debt?.period ?? 'the current period'}.</p>
+            </div>
+          )}
+
+          {debt && !done && !alreadyPaid && (
             <>
               <div className="border border-slate-200 rounded-xl p-4 space-y-3">
                 <div className="flex justify-between text-sm">

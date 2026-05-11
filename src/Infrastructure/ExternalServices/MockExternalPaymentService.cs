@@ -13,10 +13,10 @@ public class MockExternalPaymentService : IExternalPaymentService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<CheckDebtResponse> CheckDebtAsync(int subscriptionId)
+    public async Task<CheckDebtResponse> CheckDebtAsync(int subscriptionId, decimal expectedAmount)
     {
         var client = _httpClientFactory.CreateClient("MockBankApi");
-        var response = await client.GetAsync($"/api/mock/debt/{subscriptionId}");
+        var response = await client.GetAsync($"/api/mock/debt/{subscriptionId}/{expectedAmount}");
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();

@@ -2,7 +2,7 @@ namespace HalalBank.Application.Interfaces;
 
 public interface IExternalPaymentService
 {
-    Task<CheckDebtResponse> CheckDebtAsync(int subscriptionId);
+    Task<CheckDebtResponse> CheckDebtAsync(int subscriptionId, decimal expectedAmount);
     Task<ProcessPaymentResponse> ProcessPaymentAsync(decimal amount);
 }
 
