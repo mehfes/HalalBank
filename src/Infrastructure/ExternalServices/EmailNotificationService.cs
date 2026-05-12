@@ -115,6 +115,11 @@ public class EmailNotificationService : INotificationService
         };
 
         var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("SendGrid returned {Status}: {Body}", response.StatusCode, body);
+        }
         response.EnsureSuccessStatusCode();
     }
 
