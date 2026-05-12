@@ -1,7 +1,7 @@
 # HalalBank — System Design Document
 
 > Subscription & Auto-Payment Reminder System  
-> Version 1.0 — May 2026
+> Version 2.0 — May 2026
 
 ---
 
@@ -23,16 +23,17 @@ erDiagram
     SUBSCRIPTION_PLAN ||--o{ SUBSCRIPTION : template
 
     CUSTOMER {
-        int Id PK
+        int Id PK "identity"
         string FirstName "max 100"
         string LastName "max 100"
         string Email "max 200"
-        string Password "max 100"
+        string Password "BCrypt hash, max 200"
+        string Role "Admin | Customer, max 20"
         datetime CreatedDate
     }
 
     SUBSCRIPTION {
-        int Id PK
+        int Id PK "identity"
         int CustomerId FK
         string SubscriptionNumber "SUB-XXXXX"
         string ProviderName "max 200"
@@ -41,11 +42,11 @@ erDiagram
         decimal Price "decimal(18,2)"
         string BillingCycle "Monthly|Yearly"
         datetime NextPaymentDate
-        string Status "Active|Passive"
+        string Status "Active|Passive|Suspended|Cancelled"
     }
 
     PAYMENT {
-        int Id PK
+        int Id PK "identity"
         int SubscriptionId FK
         decimal Amount "decimal(18,2)"
         datetime PaymentDate
@@ -83,126 +84,74 @@ erDiagram
 
 | Method | Endpoint | Description | Auth | Request Body | Response |
 |--------|----------|-------------|------|-------------|----------|
-| `POST` | `/api/auth/login` | Authenticate user | — | `{ email, password }` | `{ id, email, firstName, lastName, role }` |
-| `POST` | `/api/auth/register` | Create new account | — | `{ firstName, lastName, email, password }` | `{ id, email, firstName, lastName, role }` |
-| `POST` | `/api/auth/google-login` | Google OAuth login | — | `{ idToken }` | `{ id, email, firstName, lastName, role }` |
+| `POST` | `/api/auth/login` | Authenticate user | — | `{ email, password }` | `{ id, email, firstName, lastName, role, token }` |
+| `POST` | `/api/auth/register` | Create new account | — | `{ firstName, lastName, email, password }` | `{ id, email, firstName, lastName, role, token }` |
+| `POST` | `/api/auth/google-login` | Google OAuth login | — | `{ idToken }` | `{ id, email, firstName, lastName, role, token }` |
+| `POST` | `/api/auth/forgot-password` | Reset password | — | `{ email }` | `{ message }` |
 
-### 2.2 Customers
+### 2.2 Customers (Admin only)
 
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|-------------|----------|
-| `GET` | `/api/customers` | List all customers | — | `CustomerDto[]` |
-| `GET` | `/api/customers/{id}` | Get customer by ID | — | `CustomerDto` |
-| `POST` | `/api/customers` | Create customer | `CreateCustomerDto` | `CustomerDto` (201) |
-| `DELETE` | `/api/customers/{id}` | Delete customer | — | 204 No Content |
+| Method | Endpoint | Description | Auth | Response |
+|--------|----------|-------------|------|----------|
+| `GET` | `/api/customers` | List all customers | Admin | `CustomerDto[]` |
+| `GET` | `/api/customers/{id}` | Get customer by ID | Admin | `CustomerDto` |
+| `POST` | `/api/customers` | Create customer | Admin | `CustomerDto` (201) |
+| `DELETE` | `/api/customers/{id}` | Delete customer | Admin | 204 No Content |
 
 ### 2.3 Subscriptions
 
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|-------------|----------|
-| `GET` | `/api/subscriptions` | List all subscriptions | — | `SubscriptionDto[]` |
-| `GET` | `/api/subscriptions/{id}` | Get by ID | — | `SubscriptionDto` |
-| `GET` | `/api/subscriptions/by-customer/{customerId}` | Get by customer | — | `SubscriptionDto[]` |
-| `POST` | `/api/subscriptions` | Create subscription | `CreateSubscriptionDto` | `SubscriptionDto` (201) |
-| `PUT` | `/api/subscriptions/{id}` | Update subscription | `UpdateSubscriptionDto` | 204 No Content |
-| `DELETE` | `/api/subscriptions/{id}` | Delete subscription | — | 204 No Content |
-
-#### Subscription DTOs
-
-**CreateSubscriptionDto:**
-```json
-{
-  "customerId": 1,
-  "subscriptionNumber": "",           // auto-generated if empty
-  "providerName": "Netflix",
-  "category": "Streaming",
-  "subscriptionType": "Streaming",
-  "price": 15.99,
-  "billingCycle": "Monthly",
-  "nextPaymentDate": "2026-06-15T00:00:00Z"
-}
-```
-
-**UpdateSubscriptionDto** (all fields optional):
-```json
-{
-  "price": 19.99,
-  "status": "Passive",
-  "subscriptionType": "Passive"
-}
-```
+| Method | Endpoint | Description | Auth | Response |
+|--------|----------|-------------|------|----------|
+| `GET` | `/api/subscriptions` | List all subscriptions | Admin | `SubscriptionDto[]` |
+| `GET` | `/api/subscriptions/{id}` | Get by ID | Any user (own) | `SubscriptionDto` |
+| `GET` | `/api/subscriptions/by-customer/{customerId}` | Get by customer | Any user (own) | `SubscriptionDto[]` |
+| `POST` | `/api/subscriptions` | Create subscription | Any user | `SubscriptionDto` (201) |
+| `PUT` | `/api/subscriptions/{id}` | Update subscription | Any user (own) | 204 No Content |
+| `DELETE` | `/api/subscriptions/{id}` | Delete subscription | Any user (own) | 204 No Content |
 
 ### 2.4 Payments
 
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|-------------|----------|
-| `GET` | `/api/payments` | List all payments | — | `PaymentDto[]` |
-| `GET` | `/api/payments/{id}` | Get by ID | — | `PaymentDto` |
-| `GET` | `/api/payments/by-subscription/{subscriptionId}` | Get by subscription | — | `PaymentDto[]` |
-| `POST` | `/api/payments/query-debt/{subscriptionId}` | Query debt for period | — | `DebtResponseDto` |
-| `POST` | `/api/payments/pay` | Process payment | `CreatePaymentDto` | `PaymentDto` (201) |
-
-#### Payment DTOs
-
-**DebtResponseDto:**
-```json
-{
-  "amount": 15.99,            // 0 if already paid
-  "dueDate": "2026-06-01T...",
-  "period": "2026 05"        // YYYY MM format
-}
-```
-
-**CreatePaymentDto:**
-```json
-{
-  "subscriptionId": 1,
-  "amount": 15.99
-}
-```
+| Method | Endpoint | Description | Auth | Response |
+|--------|----------|-------------|------|----------|
+| `GET` | `/api/payments` | List all payments | Admin | `PaymentDto[]` |
+| `GET` | `/api/payments/{id}` | Get by ID | Any user | `PaymentDto` |
+| `GET` | `/api/payments/by-subscription/{subscriptionId}` | Get by subscription | Any user | `PaymentDto[]` |
+| `POST` | `/api/payments/query-debt/{subscriptionId}` | Query debt for period | Any user | `DebtResponseDto` |
+| `POST` | `/api/payments/pay` | Process payment | Any user | `PaymentDto` (201) |
 
 ### 2.5 Subscription Plans (Service Catalog)
 
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|-------------|----------|
-| `GET` | `/api/subscriptionplans` | List all plans | — | `SubscriptionPlanDto[]` |
-| `GET` | `/api/subscriptionplans/{id}` | Get by ID | — | `SubscriptionPlanDto` |
-| `POST` | `/api/subscriptionplans` | Create plan | `CreateSubscriptionPlanDto` | `SubscriptionPlanDto` (201) |
-| `PUT` | `/api/subscriptionplans/{id}` | Update plan | `UpdateSubscriptionPlanDto` | 204 No Content |
-| `DELETE` | `/api/subscriptionplans/{id}` | Delete plan | — | 204 No Content |
+| Method | Endpoint | Description | Auth | Response |
+|--------|----------|-------------|------|----------|
+| `GET` | `/api/subscriptionplans` | List all plans | Any user | `SubscriptionPlanDto[]` |
+| `GET` | `/api/subscriptionplans/{id}` | Get by ID | Any user | `SubscriptionPlanDto` |
+| `POST` | `/api/subscriptionplans` | Create plan | Admin | `SubscriptionPlanDto` (201) |
+| `PUT` | `/api/subscriptionplans/{id}` | Update plan | Admin | 204 No Content |
+| `DELETE` | `/api/subscriptionplans/{id}` | Delete plan | Admin | 204 No Content |
 
 ### 2.6 Dashboard & Tasks
 
-| Method | Endpoint | Description | Response |
-|--------|----------|-------------|----------|
-| `GET` | `/api/dashboard` | Dashboard stats (active count + upcoming 7d) | `DashboardDto` |
-| `POST` | `/api/payment-task/process-overdue` | Process all overdue subscriptions | `PaymentTaskResult` |
-| `POST` | `/api/payment-task/send-reminders` | Send email reminders (due within 3 days) | `{ remindersSent: number }` |
+| Method | Endpoint | Description | Auth | Response |
+|--------|----------|-------------|------|----------|
+| `GET` | `/api/dashboard` | Dashboard stats (active + upcoming 7d) | Any user | `DashboardDto` |
+| `POST` | `/api/payment-task/process-overdue` | Process all overdue subscriptions | Admin | `PaymentTaskResult` |
+| `POST` | `/api/payment-task/send-reminders` | Send email reminders (due within 3 days) | Admin | `{ remindersSent }` |
 
-#### PaymentTaskResult
+### 2.7 Health
 
-```json
-{
-  "checkedCount": 5,
-  "paidCount": 3,
-  "failedCount": 1,
-  "skippedCount": 1,
-  "details": [
-    "Subscription 1 (Netflix): Paid $15.99. Next payment: 01 Jul 2026",
-    "Subscription 2 (Spotify): No debt. Skipped.",
-    "Subscription 3 (Electricity Bill): Payment failed.",
-    "..."
-  ]
-}
-```
+| Method | Endpoint | Description | Auth | Response |
+|--------|----------|-------------|------|----------|
+| `GET` | `/api/health` | Health check | — | `{ status, timestamp }` |
 
-### 2.7 Error Handling
+### 2.8 Error Handling
 
 All endpoints return consistent error responses via `ExceptionHandlingMiddleware`:
 
 | HTTP Status | Condition |
 |-------------|-----------|
-| `400 Bad Request` | Invalid operation (e.g., double payment) |
+| `400 Bad Request` | Invalid operation (e.g., double payment, wrong password) |
+| `401 Unauthorized` | Missing or invalid JWT token |
+| `403 Forbidden` | Insufficient role (non-admin accessing admin endpoint) |
 | `404 Not Found` | Resource not found (invalid ID) |
 | `500 Internal Server Error` | Unexpected exception |
 
@@ -216,7 +165,36 @@ All endpoints return consistent error responses via `ExceptionHandlingMiddleware
 
 ## 3. Flow Diagram
 
-### 3.1 Overdue Payment Processing
+### 3.1 Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant DB
+    participant JWT
+
+    User->>Frontend: Enter email + password
+    Frontend->>Backend: POST /api/auth/login
+    Backend->>DB: Find customer by email
+    alt Customer not found
+        Backend-->>Frontend: 400 "Invalid email or password"
+    else Customer found
+        Backend->>DB: BCrypt.Verify(password, hash)
+        alt Wrong password
+            Backend-->>Frontend: 400 "Invalid email or password"
+        else Correct password
+            Backend->>JWT: GenerateToken(id, email, role)
+            JWT-->>Backend: Bearer token (7 day expiry)
+            Backend-->>Frontend: { id, email, role, token }
+            Frontend->>Frontend: Store in localStorage
+            Frontend->>Frontend: Redirect to /dashboard
+        end
+    end
+```
+
+### 3.2 Overdue Payment Processing
 
 ```mermaid
 flowchart TD
@@ -239,7 +217,7 @@ flowchart TD
     N --> O[Return PaymentTaskResult]
 ```
 
-### 3.2 Email Reminder Flow
+### 3.3 Email Reminder Flow
 
 ```mermaid
 flowchart TD
@@ -249,8 +227,8 @@ flowchart TD
     D --> E{Already paid?}
     E -->|Yes| F[Skip — no reminder sent]
     E -->|No| G[SendReminderEmailAsync<br/>via EmailNotificationService]
-    G --> H{SMTP configured?}
-    H -->|Yes| I[Send real HTML email<br/>via SmtpClient]
+    G --> H{SendGrid configured?}
+    H -->|Yes| I[Send real HTML email<br/>via SendGrid HTTP API]
     H -->|No| J[Log to console]
     I --> K[Increment sentCount]
     J --> K
@@ -260,7 +238,7 @@ flowchart TD
     L -->|No| M[Return remindersSent count]
 ```
 
-### 3.3 User Payment Flow (Frontend)
+### 3.4 User Payment Flow (Frontend)
 
 ```mermaid
 flowchart TD
@@ -269,15 +247,19 @@ flowchart TD
     C --> D{Already paid for period?}
     D -->|Yes| E["Show Already Paid badge<br/>Auto-redirect in 5s<br/>or click Go to Dashboard"]
     D -->|No| F["Show Amount Due, Due Date, Period"]
-    F --> G[User clicks Confirm Payment]
-    G --> H["2s processing spinner"]
-    H --> I["POST /api/payments/pay"]
-    I --> J{Success?}
-    J -->|Yes| K["Redirect to Dashboard<br/>with success toast"]
-    J -->|No| L["Show error message<br/>Payment declined"]
+    F --> G[User fills card details]
+    G --> H[Luhn validation + expiry check]
+    H --> I{All fields valid?}
+    I -->|No| G
+    I -->|Yes| J[User clicks Confirm Payment]
+    J --> K["2s processing spinner"]
+    K --> L["POST /api/payments/pay"]
+    L --> M{Success?}
+    M -->|Yes| N["Redirect to Dashboard<br/>with success toast"]
+    M -->|No| O["Show error message<br/>Payment declined"]
 ```
 
-### 3.4 Scheduled Background Service (Runs Every 6 Hours)
+### 3.5 Scheduled Background Service (Runs Every 6 Hours)
 
 ```mermaid
 flowchart LR
@@ -304,10 +286,11 @@ flowchart LR
 │   │              React SPA (Single Page Application)            │     │
 │   │  Browser-side routing (react-router-dom)                   │     │
 │   │  State management via React Context (AuthContext)          │     │
+│   │  JWT token in localStorage, Bearer in Authorization header│     │
 │   │  HTTP communication via fetch API (api.ts service layer)   │     │
 │   │  CSS framework: Tailwind CSS v4                            │     │
 │   └──────────────────────┬────────────────────────────────────┘     │
-│                          │ HTTP / JSON                              │
+│                          │ HTTP / JSON + Bearer token               │
 │                          │ localhost:3000 → proxy → localhost:5000  │
 └──────────────────────────┼──────────────────────────────────────────┘
                            │
@@ -319,21 +302,21 @@ flowchart LR
 │   │                                                             │     │
 │   │  ┌─────────────────────────────────────────────────────┐  │     │
 │   │  │            PRESENTATION (API Layer)                  │  │     │
-│   │  │  Controllers · Middleware · Program.cs               │  │     │
-│   │  │  CORS · Swagger · DI Container                      │  │     │
+│   │  │  Controllers · Middleware · JwtService · Program.cs  │  │     │
+│   │  │  CORS · Swagger · DI Container · Serilog             │  │     │
 │   │  └────────────────┬────────────────────────────────────┘  │     │
 │   │                   │                                       │     │
 │   │  ┌────────────────┴────────────────────────────────────┐  │     │
 │   │  │            INFRASTRUCTURE LAYER                      │  │     │
 │   │  │  EF Core DbContext · Repositories (EF)              │  │     │
-│   │  │  External Services (Mock Payment, Email, HTTP)      │  │     │
+│   │  │  External Services (Mock Payment, SendGrid, HTTP)   │  │     │
 │   │  │  ScheduledPaymentService (BackgroundService)         │  │     │
 │   │  └────────────────┬────────────────────────────────────┘  │     │
 │   │                   │                                       │     │
 │   │  ┌────────────────┴────────────────────────────────────┐  │     │
 │   │  │            APPLICATION LAYER                         │  │     │
 │   │  │  DTOs · Service Interfaces · Business Logic         │  │     │
-│   │  │  Mapping Profiles · PaymentTaskService · AuthService│  │     │
+│   │  │  AuthService · PaymentTaskService · JWT Handling    │  │     │
 │   │  └────────────────┬────────────────────────────────────┘  │     │
 │   │                   │                                       │     │
 │   │  ┌────────────────┴────────────────────────────────────┐  │     │
@@ -344,7 +327,7 @@ flowchart LR
 │   └───────────────────────────────────────────────────────────┘     │
 │                                                                     │
 │   ┌───────────────────────────────────────────────────────────┐     │
-│   │              DATABASE (MS SQL Server LocalDB)              │     │
+│   │              DATABASE (PostgreSQL)                         │     │
 │   │  Tables: Customers, Subscriptions, Payments,              │     │
 │   │          SubscriptionPlans, __EFMigrationsHistory         │     │
 │   └───────────────────────────────────────────────────────────┘     │
@@ -355,13 +338,12 @@ flowchart LR
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| **Architecture Style** | Monolithic (not microservice) | **Having many API endpoints (payments, subscriptions, customers, auth, plans) does NOT make this a microservice architecture.** This is a common misunderstanding. A monolith means the entire backend runs as **a single process, a single deployable artifact, sharing one database**. All controllers (`PaymentsController`, `SubscriptionsController`, etc.) live in the same codebase, are compiled into one DLL, and run on one port (`:5000`). In a microservice architecture, each of these would be a separate service with its own process, its own database, its own deployment pipeline, communicating via network calls (HTTP/message queue). This project is a monolith with Clean Architecture — the layers are logical/organizational separations within the same process, not physical/deployment separations. Rationale: focused domain scope, no need for distributed transaction complexity, easy to deploy, debug, and test. |
-| **Deployment Topology** | Two-tier (Client + Server) | Frontend and backend are separate processes communicating via HTTP/JSON. The frontend Vite dev server proxies `/api` requests to the .NET backend. In production, they would be deployed as separate artifacts (static files served via CDN + backend behind a reverse proxy). |
-| **Not a Single-Page Application in the traditional sense** | Multi-route SPA | While the frontend uses React SPA architecture (client-side routing via `react-router-dom`), it has multiple distinct pages (`/login`, `/dashboard`, `/discover`, `/admin`, `/payment-gateway/:id`) rather than being a true "single page" infinite scroll app. Each route corresponds to a dedicated view with its own data fetching and state. |
-| **Frontend-Backend Communication** | REST over HTTP | Stateless, cacheable, uniform interface. The frontend `api.ts` service layer wraps all `fetch` calls. No real-time websocket or gRPC needed. |
-| **Authentication** | Email/Password + Google OAuth | Login validates against database; Google Sign-In verifies ID token server-side via `Google.Apis.Auth`. Admin (`admin@test.com`) is handled via frontend mock (no DB record). Passwords stored as plaintext (case study constraint — real app would use hashing). |
-| **Background Processing** | In-process Hosted Service | `ScheduledPaymentService` runs inside the same ASP.NET process as a `BackgroundService`. No external job scheduler (Hangfire, Quartz) needed. Runs every 6 hours. For a production system, this would be extracted to a separate worker or function. |
-| **Database** | PostgreSQL (Railway) | PostgreSQL hosted on Railway. Auto-migration on startup via `db.Database.MigrateAsync()`. Seed data inserted on first run. Connection string from `DATABASE_URL` env var. |
+| **Architecture Style** | Monolithic (not microservice) | **Having many API endpoints (payments, subscriptions, customers, auth, plans) does NOT make this a microservice architecture.** This is a common misunderstanding. A monolith means the entire backend runs as **a single process, a single deployable artifact, sharing one database**. All controllers live in the same codebase, are compiled into one DLL, and run on one port (`:5000`). This project is a monolith with Clean Architecture — the layers are logical/organizational separations within the same process, not physical/deployment separations. Rationale: focused domain scope, no need for distributed transaction complexity, easy to deploy, debug, and test. |
+| **Deployment Topology** | Two-tier (Client + Server) | Frontend and backend are separate processes communicating via HTTP/JSON. The frontend Vite dev server proxies `/api` requests to the .NET backend. In production, they are deployed as separate artifacts (static files via Cloudflare CDN + backend on Railway). |
+| **Authentication** | JWT + BCrypt + Google OAuth | Passwords hashed with BCrypt.Net. JWT Bearer tokens issued on login with 7-day expiry containing userId, email, role claims. Google Sign-In verifies ID token server-side via `Google.Apis.Auth`. `[Authorize]` and `[Authorize(Roles = "Admin")]` protect all endpoints. |
+| **Background Processing** | In-process Hosted Service | `ScheduledPaymentService` runs inside the same ASP.NET process as a `BackgroundService`. No external job scheduler needed. Runs every 6 hours. For production, this could be extracted to a separate worker. |
+| **Database** | PostgreSQL (Railway) | PostgreSQL hosted on Railway. Auto-migration on startup via `db.Database.MigrateAsync()`. Seed data (customers, admin, subscriptions, plans) inserted automatically. Connection string from `DATABASE_URL` env var. |
+| **Observability** | Serilog + Sentry | Structured logging with Serilog (console + file sinks). Error tracking via Sentry integration. Email delivery monitored through SendGrid. |
 
 ### 4.2 Communication Patterns
 
@@ -369,30 +351,30 @@ flowchart LR
 ┌─────────────────┐                  ┌──────────────────────┐
 │  Cloudflare     │   HTTP REST      │    Railway (.NET)    │
 │  Pages (React)  │ ◄──────────────► │    Backend API       │
-│  Frontend SPA   │    JSON          │    :8080             │
+│  Frontend SPA   │    JSON + JWT    │    :8080             │
 └─────────────────┘                  └──────────┬───────────┘
-                                                 │
-                    ┌────────────────────────────┼────────────────────────────┐
-                    │                            │                            │
-                    ▼                            ▼                            ▼
-          ┌──────────────────┐       ┌──────────────────┐       ┌──────────────────────┐
-          │  PostgreSQL      │       │  Mock Payment    │       │  Google Auth         │
-          │  (Railway Addon) │       │  Gateway (in-proc)│       │  (Token Verification)│
-          └──────────────────┘       └──────────────────┘       └──────────────────────┘
-                                                                          │
-                    ┌──────────────────────────────────────────────────────┘
-                    ▼
-          ┌──────────────────────┐
-          │  SendGrid HTTP API   │
-          │  (Email Delivery)    │
-          └──────────────────────┘
+                                                  │
+                     ┌────────────────────────────┼────────────────────────────┐
+                     │                            │                            │
+                     ▼                            ▼                            ▼
+           ┌──────────────────┐       ┌──────────────────┐       ┌──────────────────────┐
+           │  PostgreSQL      │       │  Mock Payment    │       │  Google Auth         │
+           │  (Railway Addon) │       │  Gateway (in-proc)│       │  (Token Verification)│
+           └──────────────────┘       └──────────────────┘       └──────────────────────┘
+                                                                           │
+                     ┌──────────────────────────────────────────────────────┘
+                     ▼
+           ┌──────────────────────┐
+           │  SendGrid HTTP API   │
+           │  (Email Delivery)    │
+           └──────────────────────┘
 ```
 
-- **Frontend ↔ Backend:** Synchronous REST calls over HTTPS (Cloudflare Pages → Railway)
-- **Backend ↔ Database:** Entity Framework Core with Npgsql (PostgreSQL, connection pooling)
-- **Backend ↔ Mock Payment:** `IHttpClientFactory` with named client `"MockBankApi"` (in-process HTTP handler simulating real bank API)
+- **Frontend ↔ Backend:** Synchronous REST calls over HTTPS with JWT Bearer token
+- **Backend ↔ Database:** Entity Framework Core with Npgsql (PostgreSQL, connection pooling + retry on failure)
+- **Backend ↔ Mock Payment:** `IHttpClientFactory` with named client `"MockBankApi"` (in-process HTTP handler simulating real bank API with 1s delay, 80% success rate)
 - **Backend → Google:** `GoogleJsonWebSignature.ValidateAsync()` verifies ID token via Google's public keys
-- **Backend → SendGrid:** HTTP POST to `api.sendgrid.com/v3/mail/send` (port 443)
+- **Backend → SendGrid:** HTTP POST to `api.sendgrid.com/v3/mail/send` (port 443, unblocked on Railway)
 - **Background Service:** Uses DI scope factory to resolve services independently of HTTP requests
 
 ### 4.3 Route Map
@@ -402,8 +384,9 @@ flowchart LR
 | `/` | Redirect → `/login` | Public | — |
 | `/login` | `Login.tsx` | Public | `POST /api/auth/login` · `POST /api/auth/google-login` |
 | `/register` | `Register.tsx` | Public | `POST /api/auth/register` |
-| `/dashboard` | `Dashboard.tsx` | Any authenticated user | `GET /api/subscriptions/by-customer/{id}` |
-| `/discover` | `Discover.tsx` | Any authenticated user | `GET /api/subscriptionplans` · `POST /api/subscriptions` · `DELETE /api/subscriptionplans/{id}` |
+| `/forgot-password` | `ForgotPassword.tsx` | Public | `POST /api/auth/forgot-password` |
+| `/dashboard` | `Dashboard.tsx` | Any authenticated user | `GET /api/subscriptions/by-customer/{id}` · `GET /api/customers` (admin) · `GET /api/subscriptions` (admin) |
+| `/discover` | `Discover.tsx` | Any authenticated user | `GET /api/subscriptionplans` · `POST /api/subscriptions` · `DELETE /api/subscriptionplans/{id}` (admin) · `POST /api/subscriptionplans` (admin) |
 | `/admin` | `Admin.tsx` | Admin only | `GET /api/subscriptions` · `PUT /api/subscriptions/{id}` · `DELETE /api/subscriptions/{id}` · `POST /api/payment-task/process-overdue` |
 | `/payment-gateway/:subscriptionId` | `PaymentGateway.tsx` | Any authenticated user | `POST /api/payments/query-debt/{id}` · `POST /api/payments/pay` |
 
@@ -417,10 +400,11 @@ flowchart LR
 | `IPaymentService` | `PaymentService` | Scoped | Debt query + payment processing + double-payment prevention |
 | `IPaymentTaskService` | `PaymentTaskService` | Scoped | Overdue subscription batch processing |
 | `ISubscriptionPlanService` | `SubscriptionPlanService` | Scoped | Service catalog CRUD |
-| `IAuthService` | `AuthService` | Scoped | Login validation + user registration |
+| `IAuthService` | `AuthService` | Scoped | Login/register/Google auth + password hashing |
 | `IPaymentGateway` | `MockPaymentGateway` | Scoped | Direct mock: returns success if amount > 0 |
 | `IExternalPaymentService` | `MockExternalPaymentService` | Scoped | HTTP-based mock using `IHttpClientFactory` |
 | `INotificationService` | `EmailNotificationService` | Scoped | SendGrid HTTP API email with console fallback |
+| `JwtService` | `JwtService` | Transient | JWT token generation |
 | `IHttpClientFactory` | `"MockBankApi"` client | Singleton | Named client with `MockBankMessageHandler` pipeline |
 | `ScheduledPaymentService` | `BackgroundService` | Singleton | Auto-runs overdue check + reminders every 6 hours |
 
@@ -442,18 +426,52 @@ flowchart LR
 | **Backend Framework** | ASP.NET Core Web API | 8.0 | REST API framework |
 | **Architecture** | Clean Architecture | — | Separation of concerns: Domain → Application → Infrastructure → API |
 | **ORM** | Entity Framework Core | 8.0 | Database access with migrations |
-| **Database** | PostgreSQL (Railway) | 15+ | Relational data store (hosted on Railway) |
+| **Database** | PostgreSQL (Railway) | 15+ | Relational data store |
 | **Frontend Runtime** | TypeScript | ~5.x | Type-safe JavaScript |
 | **Frontend Framework** | React | 18.x | Component-based UI |
 | **Build Tool** | Vite | 6.x | Fast dev server and bundler |
 | **CSS** | Tailwind CSS | 4.x | Utility-first styling |
-| **Backend Testing** | xUnit + Moq + FluentAssertions | — | Unit testing with mocking |
-| **Frontend Testing** | Vitest + testing-library + happy-dom | — | Component and context testing |
+| **Backend Testing** | xUnit + Moq 4.20 + FluentAssertions 8.9 | — | 19 unit tests |
+| **Frontend Testing** | Vitest 4.x + @testing-library/react + happy-dom | — | 24 unit tests |
+| **Authentication** | BCrypt.Net-Next 4.x + JWT (System.IdentityModel.Tokens.Jwt) | — | Password hashing + Bearer tokens |
+| **Google Auth** | Google.Apis.Auth + @react-oauth/google | — | OAuth 2.0 sign-in |
+| **Email** | SendGrid HTTP API (no NuGet package, raw HttpClient) | — | Transactional email delivery |
+| **Observability** | Serilog + Sentry | — | Structured logging + error tracking |
 | **CI/CD** | GitHub Actions | — | Automated build and test on push/PR |
-| **Auth** | Email/Password + Google OAuth | — | Login via backend API + Google Identity Services |
-| **Email** | SendGrid HTTP API | — | Transactional email delivery (port 443, works on Railway) |
 | **Deployment (Backend)** | Railway | — | .NET 8 + PostgreSQL, auto-deploy from GitHub |
 | **Deployment (Frontend)** | Cloudflare Pages | — | Static SPA hosting, auto-deploy from GitHub |
+
+---
+
+### 4.7 Seed Data
+
+#### Customers (seeded via migration + runtime)
+
+| Id | Name | Email | Password (BCrypt of) | Role |
+|----|------|-------|---------------------|------|
+| 1 | John Doe | john.doe@email.com | password123 | Customer |
+| 2 | Jane Smith | jane.smith@email.com | password123 | Customer |
+| 3 | Bob Wilson | bob.wilson@email.com | password123 | Customer |
+| 4 | Admin User | admin@test.com | admin123 | Admin |
+
+#### Subscription Plans
+
+| Id | Name | Category | Default Price | Billing |
+|----|------|----------|---------------|---------|
+| 1 | Netflix Premium | Streaming | $15.99 | Monthly |
+| 2 | Spotify | Music | $9.99 | Monthly |
+| 3 | Gym Membership | Health | $49.99 | Monthly |
+| 4 | Internet Bill | Utilities | $59.99 | Monthly |
+
+#### Subscriptions
+
+| Id | Customer | Provider | Category | Type | Price | Cycle | Status |
+|----|----------|----------|----------|------|-------|-------|--------|
+| 1 | John Doe | Netflix | Streaming | Streaming | $15.99 | Monthly | Active |
+| 2 | John Doe | Spotify | Music | Music | $9.99 | Monthly | Active |
+| 3 | Jane Smith | Electricity Bill | Utilities | Electricity | $120.00 | Monthly | Active |
+| 4 | Jane Smith | Internet | Utilities | Internet | $59.99 | Monthly | Active |
+| 5 | Bob Wilson | Cloud Storage | Software | Software | $99.99 | Yearly | Active |
 
 ---
 

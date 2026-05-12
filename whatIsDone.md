@@ -1337,11 +1337,296 @@ Replaced `System.Net.Mail.SmtpClient` with SendGrid's HTTP API:
 
 ---
 
+## Step 26 — Phase 1: Backend Security — BCrypt Password Hashing
+
+**Prompt:** Hash all passwords with BCrypt before storing.
+
+- Added `BCrypt.Net-Next` NuGet package (v4.2.0) to Application layer
+- `AuthService.RegisterAsync` — hashes password with `BCrypt.HashPassword()` before saving
+- `AuthService.LoginAsync` — verifies password with `BCrypt.Verify()`
+- `AuthService.GoogleLoginAsync` — generates random BCrypt hash for auto-created Google users
+- `AuthService.ForgotPasswordAsync` — generates temp password, hashes it, updates DB
+- All existing seed data updated to use BCrypt hashes (migration `AddCustomerRole`)
+- Raw SQL admin seed in `Program.cs` uses `BCrypt.Net.BCrypt.HashPassword("admin123")`
+
+---
+
+## Step 27 — Phase 1: Backend Security — JWT Token Generation & Login
+
+**Prompt:** Generate JWT Bearer tokens on successful login.
+
+### JwtService (`src/API/Services/JwtService.cs`)
+- New service: `GenerateToken(userId, email, role)` — creates JWT with claims:
+  - `ClaimTypes.NameIdentifier` — user ID
+  - `ClaimTypes.Email` — email
+  - `ClaimTypes.Role` — role (Admin/Customer)
+- HMAC-SHA256 signing, 7-day expiry
+- Reads key from `Jwt:Key` config or `JWT_KEY` env var (fallback: hardcoded dev key)
+
+### AuthController + AuthService Changes
+- `POST /api/auth/login` — now returns `{ ..., token: "eyJ..." }` alongside user data
+- `POST /api/auth/register` — returns token for immediate login
+- `POST /api/auth/google-login` — returns token
+
+### Program.cs Middleware
+- `AddAuthentication(JwtBearerDefaults.AuthenticationScheme)` configured
+- `TokenValidationParameters` — validates issuer, audience, lifetime, signing key
+- `AddAuthorization()` registered
+
+---
+
+## Step 28 — Phase 1: Backend Security — [Authorize] Attributes
+
+**Prompt:** Protect all API controllers with `[Authorize]` attributes.
+
+### Controllers Updated
+| Controller | Attribute | Notes |
+|------------|-----------|-------|
+| `CustomersController` | `[Authorize(Roles = "Admin")]` | Only admin can manage all customers |
+| `SubscriptionsController` | `[Authorize]` with role checks in methods | GET (admin: all, customer: own) |
+| `PaymentsController` | `[Authorize]` | All authenticated users |
+| `SubscriptionPlansController` | `[Authorize]` | GET all users, POST/PUT/DELETE admin |
+| `DashboardController` | `[Authorize]` | Any authenticated user |
+| `PaymentTaskController` | `[Authorize(Roles = "Admin")]` | Admin only |
+
+### Role-Based Data Isolation
+- `SubscriptionsController.GetByCustomerId` — customer can only access their own subscriptions (via JWT `nameIdentifier` claim)
+- Non-admin users blocked from listing all subscriptions
+- `SubscriptionsController` — `CreateSubscription` method: customer-scoped
+
+---
+
+## Step 29 — Phase 2: Admin Seed User
+
+**Prompt:** Seed admin user in database with proper BCrypt hash.
+
+- Admin user (`admin@test.com` / `admin123`, Role = "Admin", Id = 4) seeded in `Program.cs` runtime seed
+- Uses raw SQL with `ON CONFLICT ("Id") DO UPDATE SET` to ensure password always correct
+- Fix applied: changed from `DO NOTHING` to `DO UPDATE SET` to handle existing admin with bad hash
+
+---
+
+## Step 30 — Phase 3: Admin Can Create Subscriptions for Any Customer
+
+**Prompt:** Admin page UI to create subscriptions for any customer.
+
+### Backend
+- `SubscriptionsController.Create` allows admin to specify any `customerId`
+- Customer-scoped validation only applies to non-admin users
+
+### Frontend
+- Admin page enhanced with subscription creation capability
+- Customer dropdown to select which user gets the subscription
+- Inline form for provider name, category, price, billing cycle, next payment date
+
+---
+
+## Step 31 — Phase 4: Search/Filter on Subscription Tables
+
+**Prompt:** Add search/filter capability to subscription tables.
+
+### Frontend
+- Dashboard: filter input on "My Subscriptions" table
+- Filters by: provider name, category, billing cycle, status (case-insensitive)
+- Admin page: search/filter on all subscriptions view (Phase 4 requirement)
+
+---
+
+## Step 32 — Phase 5: Health Check Endpoint
+
+**Prompt:** Create a health check endpoint for monitoring.
+
+- `GET /api/health` endpoint added
+- Returns `{ "status": "Healthy", "timestamp": "2026-05-12T..." }`
+- No authentication required
+
+---
+
+## Step 33 — Phase 6: Update Tests for New Auth Flow
+
+**Prompt:** Update all tests to work with new authentication flow.
+
+### Backend Tests (19 passing)
+- Existing `PaymentTaskServiceTests` (6) — no changes needed (mocks don't use auth)
+- `PaymentServiceTests` (4) — no changes needed
+- `SubscriptionServiceTests` (4) — added 2 new tests for status change email triggers
+- `ReminderTaskTests` (3) — no changes needed
+- `MockNotificationServiceTests` (2) — no changes needed
+
+### Frontend Tests (24 passing)
+- `AuthContext.test.tsx` (6) — updated mocks to return `token` field
+- `Discover.test.tsx` (15) — role-based assertions for Customer vs Admin
+- `Admin.test.tsx` (3) — subscription table rendering
+
+---
+
+## Step 34 — Toast Notification System & Confirmation Dialogs
+
+**Prompt:** Add toast notifications and confirmation dialogs.
+
+### ToastContext (`frontend/src/contexts/ToastContext.tsx`)
+- Global toast provider with `addToast(message, type)` where type = `success` | `error`
+- Auto-dismiss after 3 seconds with slide-out animation
+- Colored: green (success), red (error)
+
+### ConfirmDialog (`frontend/src/components/ConfirmDialog.tsx`)
+- Reusable modal: title, message, confirm/cancel buttons
+- Used on admin panel for delete/status change actions
+
+---
+
+## Step 35 — Loading Skeletons & UI Polish
+
+**Prompt:** Add loading skeletons and responsive design improvements.
+
+### SkeletonTable (`frontend/src/components/Skeleton.tsx`)
+- Configurable rows/cols for table loading state
+- Pulse animation mimicking table layout
+
+### Applied to:
+- Dashboard: cards + table skeleton while fetching
+- Admin page: skeleton while loading subscriptions
+- Discover page: skeleton while loading plans
+
+### Responsive Design
+- All pages responsive (mobile-first)
+- Tables horizontally scrollable on small screens
+- Navbar collapses gracefully
+- Cards grid: 1 col (mobile) → 2 col (tablet) → 4 col (desktop)
+
+---
+
+## Step 36 — Structured Logging (Serilog)
+
+**Prompt:** Add structured logging with Serilog for application monitoring.
+
+### Program.cs Configuration
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("api.log", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+```
+- Serilog replaces default `ILogger<T>` throughout the application
+- Console + rolling file sinks
+- Timestamps, log levels, structured properties
+
+---
+
+## Step 37 — Application Performance Monitoring & Error Tracking
+
+**Prompt:** Add Sentry for error tracking and performance monitoring.
+
+### Sentry Integration
+- `Sentry` NuGet package added to API project
+- Configured in `Program.cs`:
+  ```csharp
+  builder.WebHost.UseSentry(options => {
+      options.Dsn = sentryDsn;
+      options.TracesSampleRate = 1.0;
+  });
+  ```
+- Captures unhandled exceptions automatically
+- Performance tracing for HTTP requests
+- DSN from `SENTRY_DSN` environment variable
+
+### ExceptionHandlingMiddleware Enhancement
+- Existing middleware catches: `KeyNotFoundException` (404), `InvalidOperationException` (400), generic (500)
+- Works alongside Sentry for complete error coverage
+
+---
+
+## Step 38 — Email Delivery Monitoring
+
+**Prompt:** Add email delivery monitoring with SendGrid event tracking.
+
+### SendGrid Delivery Tracking
+- `EmailNotificationService` logs delivery status for every sent email
+- Unique message IDs tracked per email
+- Console logging with SendGrid API response codes
+- `INotificationService` interface updated to return delivery metadata
+
+---
+
+## Step 39 — Admin Sign-In Credential Fix
+
+**Prompt:** Fix admin login — admin@test.com / admin123 was returning "Invalid email or password".
+
+### Root Cause
+The admin seed SQL used `ON CONFLICT ("Id") DO NOTHING`. If the admin was previously seeded with a bad/incompatible password hash (e.g., from an earlier code version), the conflict clause silently prevented updating it with the correct hash.
+
+### Fix (`src/API/Program.cs:118-129`)
+- Removed the `if (!db.Customers.Any(c => c.Email == "admin@test.com"))` guard
+- Changed `ON CONFLICT ("Id") DO NOTHING` to `ON CONFLICT ("Id") DO UPDATE SET`
+- Now always upserts the admin user with current BCrypt hash of "admin123"
+- Password, email, role, and name are all refreshed on every app start
+
+---
+
 ## Final Test Results
 
 | Suite | Tests | Status |
 |-------|-------|--------|
-| Backend (xUnit) | 17/17 | ✅ All passing |
+| Backend (xUnit) | 19/19 | ✅ All passing |
 | Frontend (Vitest) | 24/24 | ✅ All passing |
 | Backend build | — | 0 errors, 0 warnings |
 | Frontend build | — | 0 errors, 0 warnings |
+
+## How to Run Automated Tests
+
+### Backend Tests
+```bash
+# Prerequisite: .NET 8 SDK installed
+
+# Run all backend unit tests from solution root
+dotnet test
+
+# Run with detailed output
+dotnet test --verbosity normal
+
+# Run a specific test class
+dotnet test --filter "FullyQualifiedName~PaymentTaskServiceTests"
+
+# Run tests matching a trait
+dotnet test --filter "Category=Unit"
+```
+
+**Test framework:** xUnit + Moq + FluentAssertions  
+**Location:** `tests/Application.Tests/`
+
+### Frontend Tests
+```bash
+# Prerequisite: Node.js 18+ installed
+
+# Navigate to frontend
+cd frontend
+
+# Install dependencies (first time only)
+npm install
+
+# Run all tests once
+npm test
+
+# Run tests in watch mode (re-runs on changes)
+npm run test:watch
+
+# Run with UI (interactive browser interface)
+npm run test:ui
+
+# Run a specific test file
+npx vitest run src/__tests__/AuthContext.test.tsx
+```
+
+**Test framework:** Vitest + @testing-library/react + happy-dom  
+**Location:** `frontend/src/__tests__/`
+
+### CI Pipeline
+GitHub Actions automatically runs both test suites on push/PR to `main`:
+```yaml
+# .github/workflows/ci.yml
+- run: dotnet restore
+- run: dotnet build --no-restore
+- run: dotnet test --no-build --verbosity normal
+# Frontend:
+- run: cd frontend && npm ci && npm test
+```
