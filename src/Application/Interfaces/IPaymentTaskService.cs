@@ -4,7 +4,8 @@ namespace HalalBank.Application.Interfaces;
 
 public interface IPaymentTaskService
 {
-    Task<PaymentTaskResult> ProcessOverdueSubscriptionsAsync();
+    Task<PaymentTaskResult> ProcessOverdueSubscriptionsAsync(DateTime? cutoffDate = null);
+    Task<PaymentTaskResult> ProcessSubscriptionPaymentAsync(int subscriptionId);
 }
 
 public class PaymentTaskResult

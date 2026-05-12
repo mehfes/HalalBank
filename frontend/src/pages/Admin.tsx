@@ -32,6 +32,7 @@ export default function Admin() {
   const [taskLoading, setTaskLoading] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [processingSubId, setProcessingSubId] = useState<number | null>(null)
 
   const loadSubscriptions = () => {
     setLoadingSubs(true)
@@ -81,6 +82,20 @@ export default function Admin() {
     }
   }
 
+  const handleProcessSubscription = async (id: number) => {
+    setProcessingSubId(id)
+    try {
+      const result = await api.paymentTask.processSubscription(id)
+      setToast(`Processed: ${result.paidCount} paid, ${result.failedCount} failed, ${result.skippedCount} skipped`)
+      setTaskResult(result)
+      loadSubscriptions()
+    } catch (err: any) {
+      setToast(`Error: ${err.message}`)
+    } finally {
+      setProcessingSubId(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {toast && (
@@ -115,7 +130,7 @@ export default function Admin() {
                     <th className="pb-2 font-medium">Billing</th>
                     <th className="pb-2 font-medium">Next Payment</th>
                     <th className="pb-2 font-medium">Status</th>
-                    <th className="pb-2 font-medium">Actions</th>
+                    <th className="pb-2 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -136,8 +151,15 @@ export default function Admin() {
                           {sub.status}
                         </span>
                       </td>
-                      <td className="py-2.5">
-                        <div className="flex items-center gap-2">
+                      <td className="py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleProcessSubscription(sub.id)}
+                            disabled={processingSubId === sub.id}
+                            className="px-2 py-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-xs rounded transition-colors cursor-pointer disabled:cursor-not-allowed"
+                          >
+                            {processingSubId === sub.id ? '...' : 'Process'}
+                          </button>
                           <select
                             value={sub.status}
                             onChange={e => handleStatusChange(sub.id, e.target.value)}

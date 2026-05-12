@@ -24,7 +24,7 @@ public class MockBankMessageHandler : HttpMessageHandler
 
         if (request.RequestUri?.AbsolutePath.Contains("/payment", StringComparison.OrdinalIgnoreCase) == true)
         {
-            var isSuccess = _random.NextDouble() < 0.8;
+            var isSuccess = true;
             var paymentResponse = new
             {
                 isSuccess,

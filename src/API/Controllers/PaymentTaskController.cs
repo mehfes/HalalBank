@@ -25,7 +25,14 @@ public class PaymentTaskController : ControllerBase
     [HttpPost("process-overdue")]
     public async Task<IActionResult> ProcessOverdue()
     {
-        var result = await _paymentTaskService.ProcessOverdueSubscriptionsAsync();
+        var result = await _paymentTaskService.ProcessOverdueSubscriptionsAsync(DateTime.UtcNow.AddDays(1));
+        return Ok(result);
+    }
+
+    [HttpPost("process-subscription/{subscriptionId:int}")]
+    public async Task<IActionResult> ProcessSubscription(int subscriptionId)
+    {
+        var result = await _paymentTaskService.ProcessSubscriptionPaymentAsync(subscriptionId);
         return Ok(result);
     }
 
