@@ -77,6 +77,9 @@ export default function Dashboard() {
   const upcomingPayments = subscriptions.filter(s =>
     s.status === 'Active' && new Date(s.nextPaymentDate) >= now && new Date(s.nextPaymentDate) <= sevenDays
   )
+  const overduePayments = subscriptions.filter(s =>
+    s.status === 'Active' && new Date(s.nextPaymentDate) <= now
+  )
   const filteredSubs = subSearch
     ? subscriptions.filter(s =>
         s.providerName.toLowerCase().includes(subSearch.toLowerCase()) ||
@@ -192,10 +195,14 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Total Active Subscriptions</p>
             <p className="mt-2 text-4xl font-bold text-emerald-600">{activeSubscriptions.length}</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Overdue Payments</p>
+            <p className={`mt-2 text-4xl font-bold ${overduePayments.length > 0 ? 'text-red-600' : 'text-slate-400'}`}>{overduePayments.length}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Upcoming Payments (7 days)</p>
@@ -237,6 +244,57 @@ export default function Dashboard() {
                             className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
                           >
                             Pay
+                          </button>
+                          <button
+                            onClick={() => setHistorySub({ id: sub.id, name: sub.providerName })}
+                            className="px-3 py-1 border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            History
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {overduePayments.length > 0 && (
+          <section className="bg-white rounded-xl shadow-sm border border-red-200 p-6">
+            <h2 className="text-lg font-semibold text-red-800 mb-4">Overdue Payments</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-500 border-b border-slate-200">
+                    <th className="pb-2 font-medium">Subscription #</th>
+                    <th className="pb-2 font-medium">Provider</th>
+                    <th className="pb-2 font-medium">Category</th>
+                    <th className="pb-2 font-medium">Type</th>
+                    <th className="pb-2 font-medium">Amount</th>
+                    <th className="pb-2 font-medium">Due Date</th>
+                    <th className="pb-2 font-medium">Billing</th>
+                    <th className="pb-2 font-medium"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overduePayments.map(sub => (
+                    <tr key={sub.id} className="border-b border-slate-100 last:border-0">
+                      <td className="py-2.5 text-slate-600 font-mono text-xs">{sub.subscriptionNumber}</td>
+                      <td className="py-2.5 text-slate-800 font-medium">{sub.providerName}</td>
+                      <td className="py-2.5 text-slate-600">{sub.category}</td>
+                      <td className="py-2.5"><span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{sub.subscriptionType}</span></td>
+                      <td className="py-2.5 text-slate-800 font-medium">${sub.price.toFixed(2)}</td>
+                      <td className="py-2.5 text-red-600 font-medium">{formatDate(sub.nextPaymentDate)}</td>
+                      <td className="py-2.5 text-slate-600">{sub.billingCycle}</td>
+                      <td className="py-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigate(`/payment-gateway/${sub.id}`)}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            Pay Now
                           </button>
                           <button
                             onClick={() => setHistorySub({ id: sub.id, name: sub.providerName })}
