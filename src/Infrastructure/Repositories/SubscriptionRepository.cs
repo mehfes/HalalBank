@@ -22,6 +22,7 @@ public class SubscriptionRepository : ISubscriptionRepository
 
     public async Task<IEnumerable<Subscription>> GetOverdueAsync(DateTime currentDate) =>
         await _context.Subscriptions
+            .Include(s => s.Customer)
             .Where(s => s.Status == Domain.Enums.SubscriptionStatus.Active && s.NextPaymentDate <= currentDate)
             .ToListAsync();
 
