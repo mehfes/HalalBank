@@ -30,4 +30,22 @@ public class MockNotificationService : INotificationService
 
         return Task.CompletedTask;
     }
+
+    public Task SendStatusChangeEmailAsync(Customer customer, Subscription subscription, string oldStatus, string newStatus)
+    {
+        _logger.LogInformation(
+            "📧 STATUS CHANGE EMAIL SENT --- To: {Email} | Subject: Subscription '{Provider}' Status Changed | " +
+            "Body: Dear {Name}, your subscription '{Provider}' ({Category}) status has been changed from {OldStatus} to {NewStatus}. " +
+            "Subscription #: {SubNo}.",
+            customer.Email,
+            subscription.ProviderName,
+            $"{customer.FirstName} {customer.LastName}",
+            subscription.ProviderName,
+            subscription.Category,
+            oldStatus,
+            newStatus,
+            subscription.SubscriptionNumber);
+
+        return Task.CompletedTask;
+    }
 }

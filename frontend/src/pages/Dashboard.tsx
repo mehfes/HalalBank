@@ -18,6 +18,14 @@ interface Subscription {
   status: string
 }
 
+interface Customer {
+  id: number
+  firstName: string
+  lastName: string
+  email: string
+  createdDate: string
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -26,6 +34,10 @@ export default function Dashboard() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
   const [historySub, setHistorySub] = useState<{ id: number; name: string } | null>(null)
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [allSubs, setAllSubs] = useState<Subscription[]>([])
+
+  const isAdmin = user?.role === 'Admin'
 
   useEffect(() => {
     if (location.state?.paymentSuccess) {
@@ -37,8 +49,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user) return
-    if (user.role === 'Customer' && user.customerId) {
-      setLoading(true)
+    setLoading(true)
+
+    if (isAdmin) {
+      Promise.all([
+        api.customers.getAll().catch(() => []),
+        api.subscriptions.getAll().catch(() => []),
+      ]).then(([cust, subs]) => {
+        setCustomers(cust)
+        setAllSubs(subs)
+      }).finally(() => setLoading(false))
+    } else if (user.customerId) {
       api.subscriptions.getByCustomerId(user.customerId)
         .then(setSubscriptions)
         .catch(console.error)
@@ -65,6 +86,81 @@ export default function Dashboard() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <p className="text-slate-500 text-lg">Loading...</p>
         </div>
+      </div>
+    )
+  }
+
+  if (isAdmin) {
+    const totalActive = allSubs.filter(s => s.status === 'Active').length
+    const overdueCount = allSubs.filter(s => s.status === 'Active' && new Date(s.nextPaymentDate) <= now).length
+
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Navbar />
+        <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Admin Dashboard</h1>
+            <p className="text-sm text-slate-500 mt-1">System overview — signed in as {user?.email}</p>
+          </div>
+
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Total Users</p>
+              <p className="mt-2 text-4xl font-bold text-indigo-600">{customers.length}</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Total Subscriptions</p>
+              <p className="mt-2 text-4xl font-bold text-emerald-600">{allSubs.length}</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Active Subscriptions</p>
+              <p className="mt-2 text-4xl font-bold text-blue-600">{totalActive}</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Overdue Payments</p>
+              <p className="mt-2 text-4xl font-bold text-red-600">{overdueCount}</p>
+            </div>
+          </section>
+
+          <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4">All Users</h2>
+            {customers.length === 0 ? (
+              <p className="text-slate-400 text-sm text-center py-8">No registered users yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-slate-500 border-b border-slate-200">
+                      <th className="pb-2 font-medium">ID</th>
+                      <th className="pb-2 font-medium">Name</th>
+                      <th className="pb-2 font-medium">Email</th>
+                      <th className="pb-2 font-medium">Registered</th>
+                      <th className="pb-2 font-medium">Subscriptions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customers.map(c => {
+                      const userSubs = allSubs.filter(s => s.customerId === c.id)
+                      return (
+                        <tr key={c.id} className="border-b border-slate-100 last:border-0">
+                          <td className="py-2.5 text-slate-600 font-mono text-xs">{c.id}</td>
+                          <td className="py-2.5 text-slate-800 font-medium">{c.firstName} {c.lastName}</td>
+                          <td className="py-2.5 text-slate-600">{c.email}</td>
+                          <td className="py-2.5 text-slate-600">{formatDate(c.createdDate)}</td>
+                          <td className="py-2.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                              {userSubs.length} ({userSubs.filter(s => s.status === 'Active').length} active)
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </main>
       </div>
     )
   }
@@ -203,7 +299,6 @@ export default function Dashboard() {
             </div>
           )}
         </section>
-
       </main>
 
       {historySub && (

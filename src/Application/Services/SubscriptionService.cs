@@ -9,10 +9,12 @@ namespace HalalBank.Application.Services;
 public class SubscriptionService : ISubscriptionService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationService _notificationService;
 
-    public SubscriptionService(IUnitOfWork unitOfWork)
+    public SubscriptionService(IUnitOfWork unitOfWork, INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
     }
 
     public async Task<SubscriptionDto?> GetByIdAsync(int id)
@@ -58,6 +60,8 @@ public class SubscriptionService : ISubscriptionService
         var subscription = await _unitOfWork.Subscriptions.GetByIdAsync(id);
         if (subscription is null) throw new KeyNotFoundException($"Subscription with id {id} not found.");
 
+        var oldStatus = subscription.Status.ToString();
+
         if (dto.ProviderName is not null) subscription.ProviderName = dto.ProviderName;
         if (dto.Category is not null) subscription.Category = dto.Category;
         if (dto.Price.HasValue) subscription.Price = dto.Price.Value;
@@ -67,6 +71,15 @@ public class SubscriptionService : ISubscriptionService
 
         await _unitOfWork.Subscriptions.UpdateAsync(subscription);
         await _unitOfWork.SaveChangesAsync();
+
+        if (dto.Status is not null && oldStatus != dto.Status)
+        {
+            var customer = await _unitOfWork.Customers.GetByIdAsync(subscription.CustomerId);
+            if (customer is not null)
+            {
+                await _notificationService.SendStatusChangeEmailAsync(customer, subscription, oldStatus, dto.Status);
+            }
+        }
     }
 
     public async Task DeleteAsync(int id)
