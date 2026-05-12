@@ -1,11 +1,13 @@
 using HalalBank.Application.Interfaces;
 using HalalBank.Domain.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HalalBank.API.Controllers;
 
 [ApiController]
 [Route("api/payment-task")]
+[Authorize(Roles = "Admin")]
 public class PaymentTaskController : ControllerBase
 {
     private readonly IPaymentTaskService _paymentTaskService;

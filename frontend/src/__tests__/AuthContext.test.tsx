@@ -7,7 +7,14 @@ vi.mock('../services/api', () => ({
   api: {
     auth: {
       login: vi.fn(({ email }: { email: string }) =>
-        Promise.resolve({ id: 1, email, firstName: 'Test', lastName: 'User', role: 'Customer' })
+        Promise.resolve({
+          id: email === 'admin@test.com' ? 4 : 1,
+          email,
+          firstName: email === 'admin@test.com' ? 'Admin' : 'Test',
+          lastName: email === 'admin@test.com' ? 'User' : 'User',
+          role: email === 'admin@test.com' ? 'Admin' : 'Customer',
+          token: 'mock-jwt-token',
+        })
       ),
     },
   },
@@ -32,12 +39,12 @@ describe('AuthContext', () => {
     expect(result.current.user).toBeNull()
   })
 
-  it('should set role to Admin for admin@test.com with no customerId', async () => {
+  it('should set role to Admin for admin@test.com with customerId 4', async () => {
     const { result } = renderAuthHook()
 
     await act(async () => result.current.login('admin@test.com', 'admin123'))
 
-    expect(result.current.user).toEqual({ email: 'admin@test.com', role: 'Admin' })
+    expect(result.current.user).toEqual({ email: 'admin@test.com', role: 'Admin', customerId: 4, firstName: 'Admin', lastName: 'User', token: 'mock-jwt-token' })
   })
 
   it('should set role to Customer with customerId from API', async () => {
@@ -45,7 +52,7 @@ describe('AuthContext', () => {
 
     await act(async () => result.current.login('user@example.com', 'password123'))
 
-    expect(result.current.user).toEqual({ email: 'user@example.com', role: 'Customer', customerId: 1, firstName: 'Test', lastName: 'User' })
+    expect(result.current.user).toEqual({ email: 'user@example.com', role: 'Customer', customerId: 1, firstName: 'Test', lastName: 'User', token: 'mock-jwt-token' })
   })
 
   it('should persist user to localStorage after login', async () => {
@@ -54,7 +61,7 @@ describe('AuthContext', () => {
     await act(async () => result.current.login('admin@test.com', 'admin123'))
 
     const stored = JSON.parse(localStorage.getItem('halalbank_user')!)
-    expect(stored).toEqual({ email: 'admin@test.com', role: 'Admin' })
+    expect(stored).toEqual({ email: 'admin@test.com', role: 'Admin', customerId: 4, firstName: 'Admin', lastName: 'User', token: 'mock-jwt-token' })
   })
 
   it('should persist Customer with customerId to localStorage', async () => {
@@ -63,7 +70,7 @@ describe('AuthContext', () => {
     await act(async () => result.current.login('user@test.com', 'password123'))
 
     const stored = JSON.parse(localStorage.getItem('halalbank_user')!)
-    expect(stored).toEqual({ email: 'user@test.com', role: 'Customer', customerId: 1, firstName: 'Test', lastName: 'User' })
+    expect(stored).toEqual({ email: 'user@test.com', role: 'Customer', customerId: 1, firstName: 'Test', lastName: 'User', token: 'mock-jwt-token' })
   })
 
   it('should clear user on logout', async () => {

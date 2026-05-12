@@ -36,6 +36,16 @@ export default function Admin() {
   const [taskLoading, setTaskLoading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
   const [processingSubId, setProcessingSubId] = useState<number | null>(null)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [createForm, setCreateForm] = useState({
+    customerId: '',
+    providerName: '',
+    category: '',
+    price: '',
+    billingCycle: 'Monthly',
+    nextPaymentDate: '',
+  })
 
   const loadSubscriptions = () => {
     setLoadingSubs(true)
@@ -85,6 +95,33 @@ export default function Admin() {
     }
   }
 
+  const filteredSubs = subscriptions.filter(s =>
+    s.providerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.subscriptionNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.customerId.toString().includes(searchTerm) ||
+    s.status.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const handleCreateSubscription = async () => {
+    try {
+      await api.subscriptions.create({
+        customerId: parseInt(createForm.customerId),
+        providerName: createForm.providerName,
+        category: createForm.category,
+        price: parseFloat(createForm.price),
+        billingCycle: createForm.billingCycle,
+        nextPaymentDate: new Date(createForm.nextPaymentDate).toISOString(),
+      })
+      addToast('Subscription created', 'success')
+      setShowCreateForm(false)
+      setCreateForm({ customerId: '', providerName: '', category: '', price: '', billingCycle: 'Monthly', nextPaymentDate: '' })
+      loadSubscriptions()
+    } catch (err: any) {
+      addToast(err.message, 'error')
+    }
+  }
+
   const handleProcessSubscription = async (id: number) => {
     setProcessingSubId(id)
     try {
@@ -116,7 +153,49 @@ export default function Admin() {
         </div>
 
         <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">All Subscriptions</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-800">All Subscriptions</h2>
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search subscriptions..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-64"
+              />
+              <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer"
+            >
+              {showCreateForm ? 'Cancel' : '+ Create Subscription'}
+            </button>
+          </div>
+          </div>
+
+          {showCreateForm && (
+            <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">New Subscription</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <input placeholder="Customer ID" value={createForm.customerId} onChange={e => setCreateForm(f => ({ ...f, customerId: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <input placeholder="Provider Name" value={createForm.providerName} onChange={e => setCreateForm(f => ({ ...f, providerName: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <input placeholder="Category" value={createForm.category} onChange={e => setCreateForm(f => ({ ...f, category: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <input placeholder="Price" type="number" step="0.01" value={createForm.price} onChange={e => setCreateForm(f => ({ ...f, price: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <select value={createForm.billingCycle} onChange={e => setCreateForm(f => ({ ...f, billingCycle: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                  <option value="Monthly">Monthly</option>
+                  <option value="Yearly">Yearly</option>
+                </select>
+                <input placeholder="Next Payment Date" type="date" value={createForm.nextPaymentDate} onChange={e => setCreateForm(f => ({ ...f, nextPaymentDate: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <button
+                onClick={handleCreateSubscription}
+                disabled={!createForm.customerId || !createForm.providerName || !createForm.price || !createForm.nextPaymentDate}
+                className="mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+              >
+                Add Subscription
+              </button>
+            </div>
+          )}
+
           {loadingSubs ? (
             <SkeletonTable rows={6} cols={10} />
           ) : subscriptions.length === 0 ? (
@@ -139,7 +218,9 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {subscriptions.map(sub => (
+                  {filteredSubs.length === 0 ? (
+                    <tr><td colSpan={10} className="text-center py-8 text-slate-400 text-sm">No subscriptions match your search.</td></tr>
+                  ) : (filteredSubs.map(sub => (
                     <tr key={sub.id} className="border-b border-slate-100 last:border-0">
                       <td className="py-2.5 text-slate-600">{sub.customerId}</td>
                       <td className="py-2.5 text-slate-600 font-mono text-xs">{sub.subscriptionNumber}</td>
@@ -182,7 +263,7 @@ export default function Admin() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>

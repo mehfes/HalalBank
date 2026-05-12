@@ -40,4 +40,5 @@ public class AuthResponseDto
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string Role { get; set; } = "Customer";
+    public string Token { get; set; } = string.Empty;
 }

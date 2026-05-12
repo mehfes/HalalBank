@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [historySub, setHistorySub] = useState<{ id: number; name: string } | null>(null)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [allSubs, setAllSubs] = useState<Subscription[]>([])
+  const [subSearch, setSubSearch] = useState('')
 
   const isAdmin = user?.role === 'Admin'
 
@@ -76,6 +77,14 @@ export default function Dashboard() {
   const upcomingPayments = subscriptions.filter(s =>
     s.status === 'Active' && new Date(s.nextPaymentDate) >= now && new Date(s.nextPaymentDate) <= sevenDays
   )
+  const filteredSubs = subSearch
+    ? subscriptions.filter(s =>
+        s.providerName.toLowerCase().includes(subSearch.toLowerCase()) ||
+        s.category.toLowerCase().includes(subSearch.toLowerCase()) ||
+        s.billingCycle.toLowerCase().includes(subSearch.toLowerCase()) ||
+        s.status.toLowerCase().includes(subSearch.toLowerCase())
+      )
+    : subscriptions
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -246,7 +255,16 @@ export default function Dashboard() {
         )}
 
         <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">My Subscriptions</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-800">My Subscriptions</h2>
+            <input
+              type="text"
+              placeholder="Filter subscriptions..."
+              value={subSearch}
+              onChange={e => setSubSearch(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-56"
+            />
+          </div>
 
           {subscriptions.length === 0 && (
             <p className="text-slate-400 text-sm text-center py-8">No subscriptions found.</p>
@@ -254,7 +272,10 @@ export default function Dashboard() {
 
           {subscriptions.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              {filteredSubs.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-8">No subscriptions match your filter.</p>
+              ) : (
+                <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-slate-500 border-b border-slate-200">
                     <th className="pb-2 font-medium">Subscription #</th>
@@ -305,6 +326,7 @@ export default function Dashboard() {
                   ))}
                 </tbody>
               </table>
+            )}
             </div>
           )}
         </section>

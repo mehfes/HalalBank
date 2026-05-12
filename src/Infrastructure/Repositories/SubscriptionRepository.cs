@@ -35,7 +35,7 @@ public class SubscriptionRepository : ISubscriptionRepository
             .ToListAsync();
 
     public async Task<IEnumerable<Subscription>> GetAllAsync() =>
-        await _context.Subscriptions.Include(s => s.Customer).ToListAsync();
+        await _context.Subscriptions.Include(s => s.Customer).OrderBy(s => s.CustomerId).ThenBy(s => s.Id).ToListAsync();
 
     public async Task<Subscription> AddAsync(Subscription subscription)
     {

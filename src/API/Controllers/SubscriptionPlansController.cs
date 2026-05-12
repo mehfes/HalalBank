@@ -1,11 +1,13 @@
 using HalalBank.Application.DTOs;
 using HalalBank.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HalalBank.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class SubscriptionPlansController : ControllerBase
 {
     private readonly ISubscriptionPlanService _planService;

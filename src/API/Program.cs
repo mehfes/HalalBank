@@ -1,3 +1,4 @@
+using System.Text;
 using HalalBank.API.Middleware;
 using HalalBank.Application.Interfaces;
 using HalalBank.Application.Services;
@@ -5,12 +6,35 @@ using HalalBank.Domain.Interfaces;
 using HalalBank.Infrastructure.Data;
 using HalalBank.Infrastructure.ExternalServices;
 using HalalBank.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+var jwtKey = builder.Configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? "HalalBankSuperSecretKey2026!@#$%^&*()AtLeast32Chars";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "HalalBank";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "HalalBank";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddScoped<HalalBank.API.Services.JwtService>();
 
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 string? connectionString;
@@ -82,10 +106,13 @@ using (var scope = app.Services.CreateScope())
 
     if (!db.Customers.Any())
     {
+        var userHash = BCrypt.Net.BCrypt.HashPassword("password123");
+        var adminHash = BCrypt.Net.BCrypt.HashPassword("admin123");
         db.Customers.AddRange(
-            new HalalBank.Domain.Entities.Customer { Id = 1, FirstName = "John", LastName = "Doe", Email = "john.doe@email.com", Password = "password123", CreatedDate = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc) },
-            new HalalBank.Domain.Entities.Customer { Id = 2, FirstName = "Jane", LastName = "Smith", Email = "jane.smith@email.com", Password = "password123", CreatedDate = new DateTime(2026, 2, 20, 0, 0, 0, DateTimeKind.Utc) },
-            new HalalBank.Domain.Entities.Customer { Id = 3, FirstName = "Bob", LastName = "Wilson", Email = "bob.wilson@email.com", Password = "password123", CreatedDate = new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc) }
+            new HalalBank.Domain.Entities.Customer { Id = 1, FirstName = "John", LastName = "Doe", Email = "john.doe@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc) },
+            new HalalBank.Domain.Entities.Customer { Id = 2, FirstName = "Jane", LastName = "Smith", Email = "jane.smith@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 2, 20, 0, 0, 0, DateTimeKind.Utc) },
+            new HalalBank.Domain.Entities.Customer { Id = 3, FirstName = "Bob", LastName = "Wilson", Email = "bob.wilson@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc) },
+            new HalalBank.Domain.Entities.Customer { Id = 4, FirstName = "Admin", LastName = "User", Email = "admin@test.com", Password = adminHash, Role = "Admin", CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
         db.SubscriptionPlans.AddRange(
             new HalalBank.Domain.Entities.SubscriptionPlan { Id = 1, Name = "Netflix Premium", Category = "Streaming", DefaultPrice = 15.99m, DefaultBillingCycle = "Monthly" },
@@ -112,6 +139,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

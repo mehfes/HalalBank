@@ -25,7 +25,7 @@ public class AuthService : IAuthService
         if (customer is null)
             throw new InvalidOperationException("Invalid email or password.");
 
-        if (customer.Password != dto.Password)
+        if (!BCrypt.Net.BCrypt.Verify(dto.Password, customer.Password))
             throw new InvalidOperationException("Invalid email or password.");
 
         return new AuthResponseDto
@@ -34,7 +34,7 @@ public class AuthService : IAuthService
             Email = customer.Email,
             FirstName = customer.FirstName,
             LastName = customer.LastName,
-            Role = "Customer"
+            Role = customer.Role
         };
     }
 
@@ -55,7 +55,7 @@ public class AuthService : IAuthService
                 FirstName = nameParts[0],
                 LastName = nameParts.Length > 1 ? nameParts[1] : "",
                 Email = payload.Email,
-                Password = Guid.NewGuid().ToString("N"),
+                Password = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")),
                 CreatedDate = DateTime.UtcNow
             };
             await _unitOfWork.Customers.AddAsync(customer);
@@ -68,7 +68,7 @@ public class AuthService : IAuthService
             Email = customer.Email,
             FirstName = customer.FirstName,
             LastName = customer.LastName,
-            Role = "Customer"
+            Role = customer.Role
         };
     }
 
@@ -79,7 +79,7 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("If this email is registered, a reset link has been sent.");
 
         var tempPassword = Guid.NewGuid().ToString("N")[..8];
-        customer.Password = tempPassword;
+        customer.Password = BCrypt.Net.BCrypt.HashPassword(tempPassword);
         await _unitOfWork.SaveChangesAsync();
 
         var subject = "HalalBank — Password Reset";
@@ -109,6 +109,7 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Email already registered.");
 
         var customer = dto.ToEntity();
+        customer.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password);
         var created = await _unitOfWork.Customers.AddAsync(customer);
         await _unitOfWork.SaveChangesAsync();
 
@@ -118,7 +119,7 @@ public class AuthService : IAuthService
             Email = created.Email,
             FirstName = created.FirstName,
             LastName = created.LastName,
-            Role = "Customer"
+            Role = created.Role
         };
     }
 }

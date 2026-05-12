@@ -1,10 +1,26 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
+function getAuthHeaders(): Record<string, string> {
+  const stored = localStorage.getItem('halalbank_user')
+  if (!stored) return {}
+  const user = JSON.parse(stored)
+  if (user?.token) {
+    return { 'Authorization': `Bearer ${user.token}` }
+  }
+  return {}
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...getAuthHeaders() }
   const response = await fetch(`${API_BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...options,
   })
+  if (response.status === 401) {
+    localStorage.removeItem('halalbank_user')
+    window.location.href = '/login'
+    throw new Error('Session expired. Please login again.')
+  }
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }))
     throw new Error(error.error || 'Request failed')
@@ -52,11 +68,11 @@ export const api = {
   },
   auth: {
     login: (data: { email: string; password: string }) =>
-      request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+      request<{ id: number; email: string; firstName: string; lastName: string; role: string; token: string }>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
     register: (data: { firstName: string; lastName: string; email: string; password: string }) =>
-      request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+      request<{ id: number; email: string; firstName: string; lastName: string; role: string; token: string }>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     googleLogin: (data: { idToken: string }) =>
-      request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/google-login', { method: 'POST', body: JSON.stringify(data) }),
+      request<{ id: number; email: string; firstName: string; lastName: string; role: string; token: string }>('/auth/google-login', { method: 'POST', body: JSON.stringify(data) }),
     forgotPassword: (data: { email: string }) =>
       request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify(data) }),
   },

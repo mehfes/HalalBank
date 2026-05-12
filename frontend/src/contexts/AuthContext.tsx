@@ -7,6 +7,7 @@ interface User {
   customerId?: number
   firstName?: string
   lastName?: string
+  token?: string
 }
 
 interface AuthContextType {
@@ -34,27 +35,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const login = async (email: string, password: string) => {
-    if (email === 'admin@test.com') {
-      if (password !== 'admin123') {
-        throw new Error('Invalid email or password.')
-      }
-      const adminUser = { email, role: 'Admin' as const }
-      setUser(adminUser)
-      return
-    }
     const result = await api.auth.login({ email, password })
-    setUser({ email: result.email, role: 'Customer', customerId: result.id, firstName: result.firstName, lastName: result.lastName })
+    setUser({
+      email: result.email,
+      role: result.role as 'Admin' | 'Customer',
+      customerId: result.id,
+      firstName: result.firstName,
+      lastName: result.lastName,
+      token: result.token,
+    })
   }
 
   const loginWithGoogle = async (idToken: string) => {
     const result = await api.auth.googleLogin({ idToken })
-    const role = result.email === 'admin@test.com' ? 'Admin' : 'Customer'
-    setUser({ email: result.email, role, customerId: result.id, firstName: result.firstName, lastName: result.lastName })
+    setUser({
+      email: result.email,
+      role: result.role as 'Admin' | 'Customer',
+      customerId: result.id,
+      firstName: result.firstName,
+      lastName: result.lastName,
+      token: result.token,
+    })
   }
 
   const register = async (firstName: string, lastName: string, email: string, password: string) => {
     const result = await api.auth.register({ firstName, lastName, email, password })
-    setUser({ email: result.email, role: 'Customer', customerId: result.id, firstName: result.firstName, lastName: result.lastName })
+    setUser({
+      email: result.email,
+      role: result.role as 'Admin' | 'Customer',
+      customerId: result.id,
+      firstName: result.firstName,
+      lastName: result.lastName,
+      token: result.token,
+    })
   }
 
   const logout = () => {
