@@ -55,5 +55,7 @@ export const api = {
       request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
     register: (data: { firstName: string; lastName: string; email: string; password: string }) =>
       request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+    googleLogin: (data: { idToken: string }) =>
+      request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/google-login', { method: 'POST', body: JSON.stringify(data) }),
   },
 }

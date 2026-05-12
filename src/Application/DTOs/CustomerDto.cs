@@ -23,6 +23,11 @@ public class LoginRequestDto
     public string Password { get; set; } = string.Empty;
 }
 
+public class GoogleLoginRequestDto
+{
+    public string IdToken { get; set; } = string.Empty;
+}
+
 public class AuthResponseDto
 {
     public int Id { get; set; }

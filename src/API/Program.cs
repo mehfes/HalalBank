@@ -58,7 +58,8 @@ builder.Services.AddScoped<IExternalPaymentService, MockExternalPaymentService>(
 builder.Services.AddScoped<IPaymentTaskService, PaymentTaskService>();
 builder.Services.AddScoped<INotificationService, EmailNotificationService>();
 builder.Services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
+var googleClientId = builder.Configuration["GoogleAuth:ClientId"] ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID") ?? "";
+builder.Services.AddScoped<IAuthService>(_ => new AuthService(_.GetRequiredService<IUnitOfWork>(), googleClientId));
 builder.Services.AddHostedService<ScheduledPaymentService>();
 builder.Services.AddHttpClient("MockBankApi", client =>
     client.BaseAddress = new Uri("http://mockbank.local"))

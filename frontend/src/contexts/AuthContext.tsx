@@ -12,6 +12,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<void>
+  loginWithGoogle: (idToken: string) => Promise<void>
   register: (firstName: string, lastName: string, email: string, password: string) => Promise<void>
   logout: () => void
 }
@@ -45,6 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({ email: result.email, role: 'Customer', customerId: result.id, firstName: result.firstName, lastName: result.lastName })
   }
 
+  const loginWithGoogle = async (idToken: string) => {
+    const result = await api.auth.googleLogin({ idToken })
+    const role = result.email === 'admin@test.com' ? 'Admin' : 'Customer'
+    setUser({ email: result.email, role, customerId: result.id, firstName: result.firstName, lastName: result.lastName })
+  }
+
   const register = async (firstName: string, lastName: string, email: string, password: string) => {
     const result = await api.auth.register({ firstName, lastName, email, password })
     setUser({ email: result.email, role: 'Customer', customerId: result.id, firstName: result.firstName, lastName: result.lastName })
@@ -55,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, loginWithGoogle, register, logout }}>
       {children}
     </AuthContext.Provider>
   )

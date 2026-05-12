@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, loginWithGoogle } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -81,6 +82,36 @@ export default function Login() {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-white px-2 text-slate-400">or</span>
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={async (response: CredentialResponse) => {
+                if (!response.credential) return
+                setLoading(true)
+                setError('')
+                try {
+                  await loginWithGoogle(response.credential)
+                  navigate('/dashboard')
+                } catch (err: any) {
+                  setError(err.message || 'Google sign-in failed.')
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              onError={() => setError('Google sign-in failed.')}
+              theme="outline"
+              size="large"
+              text="signin_with"
+              shape="rectangular"
+            />
+          </div>
         </div>
         <p className="text-center text-sm text-slate-500 mt-6">
           Don't have an account?{' '}

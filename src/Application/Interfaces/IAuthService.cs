@@ -6,4 +6,5 @@ public interface IAuthService
 {
     Task<AuthResponseDto> LoginAsync(LoginRequestDto dto);
     Task<AuthResponseDto> RegisterAsync(CreateCustomerDto dto);
+    Task<AuthResponseDto> GoogleLoginAsync(GoogleLoginRequestDto dto);
 }

@@ -28,4 +28,11 @@ public class AuthController : ControllerBase
         var result = await _authService.RegisterAsync(dto);
         return CreatedAtAction(nameof(Login), result);
     }
+
+    [HttpPost("google-login")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto dto)
+    {
+        var result = await _authService.GoogleLoginAsync(dto);
+        return Ok(result);
+    }
 }
