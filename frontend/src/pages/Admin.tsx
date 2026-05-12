@@ -19,6 +19,14 @@ interface Subscription {
   status: string
 }
 
+interface CustomerInfo {
+  id: number
+  firstName: string
+  lastName: string
+  email: string
+  createdDate: string
+}
+
 interface PaymentTaskResult {
   checkedCount: number
   paidCount: number
@@ -39,6 +47,11 @@ export default function Admin() {
   const [processingSubId, setProcessingSubId] = useState<number | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [customers, setCustomers] = useState<CustomerInfo[]>([])
+  const [loadingCustomers, setLoadingCustomers] = useState(true)
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false)
+  const [deleteCustomerTarget, setDeleteCustomerTarget] = useState<number | null>(null)
+  const [customerForm, setCustomerForm] = useState({ firstName: '', lastName: '', email: '', password: '' })
   const [createForm, setCreateForm] = useState({
     customerId: '',
     providerName: '',
@@ -56,7 +69,15 @@ export default function Admin() {
       .finally(() => setLoadingSubs(false))
   }
 
-  useEffect(() => { loadSubscriptions() }, [])
+  const loadCustomers = () => {
+    setLoadingCustomers(true)
+    api.customers.getAll()
+      .then(setCustomers)
+      .catch(console.error)
+      .finally(() => setLoadingCustomers(false))
+  }
+
+  useEffect(() => { loadSubscriptions(); loadCustomers() }, [])
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -149,6 +170,29 @@ export default function Admin() {
     }
   }
 
+  const handleCreateCustomer = async () => {
+    try {
+      await api.customers.create(customerForm)
+      addToast('Customer created', 'success')
+      setShowCreateCustomer(false)
+      setCustomerForm({ firstName: '', lastName: '', email: '', password: '' })
+      loadCustomers()
+    } catch (err: any) {
+      addToast(err.message, 'error')
+    }
+  }
+
+  const handleDeleteCustomer = async (id: number) => {
+    try {
+      await api.customers.delete(id)
+      addToast('Customer deleted', 'success')
+      setDeleteCustomerTarget(null)
+      loadCustomers()
+    } catch (err: any) {
+      addToast(err.message, 'error')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <ConfirmDialog
@@ -157,6 +201,13 @@ export default function Admin() {
         message="Are you sure you want to delete this subscription? This action cannot be undone."
         onConfirm={() => deleteTarget !== null && handleDelete(deleteTarget)}
         onCancel={() => setDeleteTarget(null)}
+      />
+      <ConfirmDialog
+        open={deleteCustomerTarget !== null}
+        title="Delete Customer"
+        message="Are you sure you want to delete this customer? This will also remove all their subscriptions. This action cannot be undone."
+        onConfirm={() => deleteCustomerTarget !== null && handleDeleteCustomer(deleteCustomerTarget)}
+        onCancel={() => setDeleteCustomerTarget(null)}
       />
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
@@ -338,6 +389,75 @@ export default function Admin() {
               {emailLoading ? 'Sending...' : 'Send Overdue Emails'}
             </button>
           </div>
+        </section>
+
+        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-800">Customer Management</h2>
+            <button
+              onClick={() => setShowCreateCustomer(!showCreateCustomer)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer"
+            >
+              {showCreateCustomer ? 'Cancel' : '+ Create Customer'}
+            </button>
+          </div>
+
+          {showCreateCustomer && (
+            <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">New Customer</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <input placeholder="First Name" value={customerForm.firstName} onChange={e => setCustomerForm(f => ({ ...f, firstName: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <input placeholder="Last Name" value={customerForm.lastName} onChange={e => setCustomerForm(f => ({ ...f, lastName: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <input placeholder="Email" type="email" value={customerForm.email} onChange={e => setCustomerForm(f => ({ ...f, email: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <input placeholder="Password" type="password" value={customerForm.password} onChange={e => setCustomerForm(f => ({ ...f, password: e.target.value }))} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <button
+                onClick={handleCreateCustomer}
+                disabled={!customerForm.firstName || !customerForm.lastName || !customerForm.email || !customerForm.password}
+                className="mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+              >
+                Add Customer
+              </button>
+            </div>
+          )}
+
+          {loadingCustomers ? (
+            <p className="text-slate-400 text-sm text-center py-8">Loading customers...</p>
+          ) : customers.length === 0 ? (
+            <p className="text-slate-400 text-sm text-center py-8">No customers yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-500 border-b border-slate-200">
+                    <th className="pb-2 font-medium">ID</th>
+                    <th className="pb-2 font-medium">Name</th>
+                    <th className="pb-2 font-medium">Email</th>
+                    <th className="pb-2 font-medium">Registered</th>
+                    <th className="pb-2 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map(c => (
+                    <tr key={c.id} className="border-b border-slate-100 last:border-0">
+                      <td className="py-2.5 text-slate-600 font-mono text-xs">{c.id}</td>
+                      <td className="py-2.5 text-slate-800 font-medium">{c.firstName} {c.lastName}</td>
+                      <td className="py-2.5 text-slate-600">{c.email}</td>
+                      <td className="py-2.5 text-slate-600">{formatDate(c.createdDate)}</td>
+                      <td className="py-2.5 text-right">
+                        <button
+                          onClick={() => setDeleteCustomerTarget(c.id)}
+                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </main>
     </div>

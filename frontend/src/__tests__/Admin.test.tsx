@@ -12,10 +12,18 @@ vi.mock('../services/api', () => {
   ]
   return {
     api: {
+      customers: {
+        getAll: vi.fn(() => Promise.resolve([])),
+        create: vi.fn(() => Promise.resolve({})),
+        delete: vi.fn(() => Promise.resolve()),
+      },
       subscriptions: {
         getAll: vi.fn(() => Promise.resolve(subs)),
         update: vi.fn(() => Promise.resolve()),
         delete: vi.fn(() => Promise.resolve()),
+      },
+      payments: {
+        queryDebt: vi.fn(() => Promise.resolve({ amount: 0, dueDate: '', period: '' })),
       },
       paymentTask: { processOverdue: vi.fn(() => Promise.resolve({ checkedCount: 0, paidCount: 0, failedCount: 0, skippedCount: 0, details: [] })) },
     },

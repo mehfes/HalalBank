@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
   const [historySub, setHistorySub] = useState<{ id: number; name: string } | null>(null)
+  const [debtModal, setDebtModal] = useState<{ id: number; name: string; amount: number; dueDate: string; period: string; loading: boolean } | null>(null)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [allSubs, setAllSubs] = useState<Subscription[]>([])
   const [subSearch, setSubSearch] = useState('')
@@ -88,6 +89,17 @@ export default function Dashboard() {
         s.status.toLowerCase().includes(subSearch.toLowerCase())
       )
     : subscriptions
+
+  const queryDebt = async (sub: Subscription) => {
+    setDebtModal({ id: sub.id, name: sub.providerName, amount: 0, dueDate: '', period: '', loading: true })
+    try {
+      const result = await api.payments.queryDebt(sub.id)
+      setDebtModal({ id: sub.id, name: sub.providerName, amount: result.amount, dueDate: result.dueDate, period: result.period, loading: false })
+    } catch {
+      setDebtModal(null)
+      addToast('Failed to query debt', 'error')
+    }
+  }
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -246,6 +258,12 @@ export default function Dashboard() {
                             Pay
                           </button>
                           <button
+                            onClick={() => queryDebt(sub)}
+                            className="px-3 py-1 border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            Borç Sorgula
+                          </button>
+                          <button
                             onClick={() => setHistorySub({ id: sub.id, name: sub.providerName })}
                             className="px-3 py-1 border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg transition-colors cursor-pointer"
                           >
@@ -295,6 +313,12 @@ export default function Dashboard() {
                             className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
                           >
                             Pay Now
+                          </button>
+                          <button
+                            onClick={() => queryDebt(sub)}
+                            className="px-3 py-1 border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            Borç Sorgula
                           </button>
                           <button
                             onClick={() => setHistorySub({ id: sub.id, name: sub.providerName })}
@@ -373,6 +397,12 @@ export default function Dashboard() {
                             Pay
                           </button>
                           <button
+                            onClick={() => queryDebt(sub)}
+                            className="px-3 py-1 border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            Borç Sorgula
+                          </button>
+                          <button
                             onClick={() => setHistorySub({ id: sub.id, name: sub.providerName })}
                             className="px-3 py-1 border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg transition-colors cursor-pointer"
                           >
@@ -389,6 +419,49 @@ export default function Dashboard() {
           )}
         </section>
       </main>
+
+      {debtModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDebtModal(null)}>
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-slate-800 mb-1">Borç Sorgulama</h3>
+            <p className="text-sm text-slate-500 mb-4">{debtModal.name}</p>
+            {debtModal.loading ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {debtModal.amount > 0 ? (
+                  <>
+                    <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                      <span className="text-sm text-slate-600">Borç Tutarı</span>
+                      <span className="text-lg font-bold text-red-600">${debtModal.amount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                      <span className="text-sm text-slate-600">Son Ödeme Tarihi</span>
+                      <span className="text-sm font-medium text-slate-800">{formatDate(debtModal.dueDate)}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                      <span className="text-sm text-slate-600">Dönem</span>
+                      <span className="text-sm font-medium text-slate-800">{debtModal.period}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-emerald-600 font-medium">Bu dönem için ödenmiş borç bulunmamaktadır.</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => setDebtModal(null)}
+                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors cursor-pointer"
+                >
+                  Kapat
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {historySub && (
         <PaymentHistoryModal
