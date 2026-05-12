@@ -137,7 +137,30 @@ Click **Environment variables (advanced)** → **Add variable**:
 
 Replace the URL with your actual Railway backend URL from Step 2.6.
 
-### 3.4 Deploy
+### 3.4 SPA Routing (Critical)
+
+This is a Single Page Application — all routes (`/login`, `/dashboard`, `/admin`, etc.) are handled client-side by React Router. Cloudflare needs to serve `index.html` for every route, or direct navigation (or refresh) on any page except `/` will return a 404.
+
+**This is handled automatically by `frontend/public/_redirects`:**
+```
+/*    /index.html   200
+```
+
+This file is copied into the build output and tells Cloudflare to rewrite all routes to `index.html` with a 200 status.
+
+**Without this file**, navigating to `https://halalbank.pages.dev/login` would fail because Cloudflare looks for a `login.html` file that doesn't exist.
+
+### 3.5 Cache Control (Prevents Stale Content Issues)
+
+`frontend/public/_headers`:
+```
+/*
+  Cache-Control: no-cache
+```
+
+This prevents Cloudflare and browser caches from serving old versions after new deployments.
+
+### 3.6 Deploy
 
 Click **Save and Deploy**. Cloudflare will:
 1. Clone your repo
