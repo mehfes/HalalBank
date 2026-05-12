@@ -21,8 +21,7 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.HasData(
             new Customer { Id = 1, FirstName = "John", LastName = "Doe", Email = "john.doe@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc) },
             new Customer { Id = 2, FirstName = "Jane", LastName = "Smith", Email = "jane.smith@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 2, 20, 0, 0, 0, DateTimeKind.Utc) },
-            new Customer { Id = 3, FirstName = "Bob", LastName = "Wilson", Email = "bob.wilson@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc) },
-            new Customer { Id = 4, FirstName = "Admin", LastName = "User", Email = "admin@test.com", Password = adminHash, Role = "Admin", CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            new Customer { Id = 3, FirstName = "Bob", LastName = "Wilson", Email = "bob.wilson@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc) }
         );
     }
 }

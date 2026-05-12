@@ -107,13 +107,31 @@ using (var scope = app.Services.CreateScope())
     if (!db.Customers.Any())
     {
         var userHash = BCrypt.Net.BCrypt.HashPassword("password123");
-        var adminHash = BCrypt.Net.BCrypt.HashPassword("admin123");
         db.Customers.AddRange(
             new HalalBank.Domain.Entities.Customer { Id = 1, FirstName = "John", LastName = "Doe", Email = "john.doe@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc) },
             new HalalBank.Domain.Entities.Customer { Id = 2, FirstName = "Jane", LastName = "Smith", Email = "jane.smith@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 2, 20, 0, 0, 0, DateTimeKind.Utc) },
-            new HalalBank.Domain.Entities.Customer { Id = 3, FirstName = "Bob", LastName = "Wilson", Email = "bob.wilson@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc) },
-            new HalalBank.Domain.Entities.Customer { Id = 4, FirstName = "Admin", LastName = "User", Email = "admin@test.com", Password = adminHash, Role = "Admin", CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            new HalalBank.Domain.Entities.Customer { Id = 3, FirstName = "Bob", LastName = "Wilson", Email = "bob.wilson@email.com", Password = userHash, Role = "Customer", CreatedDate = new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc) }
         );
+        await db.SaveChangesAsync();
+    }
+
+    if (!db.Customers.Any(c => c.Email == "admin@test.com"))
+    {
+        db.Customers.Add(new HalalBank.Domain.Entities.Customer
+        {
+            Id = 4,
+            FirstName = "Admin",
+            LastName = "User",
+            Email = "admin@test.com",
+            Password = BCrypt.Net.BCrypt.HashPassword("admin123"),
+            Role = "Admin",
+            CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+        });
+        await db.SaveChangesAsync();
+    }
+
+    if (!db.SubscriptionPlans.Any())
+    {
         db.SubscriptionPlans.AddRange(
             new HalalBank.Domain.Entities.SubscriptionPlan { Id = 1, Name = "Netflix Premium", Category = "Streaming", DefaultPrice = 15.99m, DefaultBillingCycle = "Monthly" },
             new HalalBank.Domain.Entities.SubscriptionPlan { Id = 2, Name = "Spotify", Category = "Music", DefaultPrice = 9.99m, DefaultBillingCycle = "Monthly" },

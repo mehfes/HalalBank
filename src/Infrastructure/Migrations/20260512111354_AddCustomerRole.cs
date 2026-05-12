@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -34,36 +33,26 @@ namespace Infrastructure.Migrations
                 keyColumn: "Id",
                 keyValue: 1,
                 columns: new[] { "Password", "Role" },
-                values: new object[] { "$2a$11$frxmZS2mOPmm935/sz6GZeauwYUgmE2BLZfutvU1QAEslBpKqfSOe", "Customer" });
+                values: new object[] { "$2a$11$XUpNUQrDg84IpI9Fdrd3.uTBHDpCy2Og/Eaf4396yew/kQZKC7toS", "Customer" });
 
             migrationBuilder.UpdateData(
                 table: "Customers",
                 keyColumn: "Id",
                 keyValue: 2,
                 columns: new[] { "Password", "Role" },
-                values: new object[] { "$2a$11$frxmZS2mOPmm935/sz6GZeauwYUgmE2BLZfutvU1QAEslBpKqfSOe", "Customer" });
+                values: new object[] { "$2a$11$XUpNUQrDg84IpI9Fdrd3.uTBHDpCy2Og/Eaf4396yew/kQZKC7toS", "Customer" });
 
             migrationBuilder.UpdateData(
                 table: "Customers",
                 keyColumn: "Id",
                 keyValue: 3,
                 columns: new[] { "Password", "Role" },
-                values: new object[] { "$2a$11$frxmZS2mOPmm935/sz6GZeauwYUgmE2BLZfutvU1QAEslBpKqfSOe", "Customer" });
-
-            migrationBuilder.InsertData(
-                table: "Customers",
-                columns: new[] { "Id", "CreatedDate", "Email", "FirstName", "LastName", "Password", "Role" },
-                values: new object[] { 4, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "admin@test.com", "Admin", "User", "$2a$11$8c8QahXd86fHmcliYNNbvez35xzef9aEZNsuQ44P/KZd5MJhEFklu", "Admin" });
+                values: new object[] { "$2a$11$XUpNUQrDg84IpI9Fdrd3.uTBHDpCy2Og/Eaf4396yew/kQZKC7toS", "Customer" });
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DeleteData(
-                table: "Customers",
-                keyColumn: "Id",
-                keyValue: 4);
-
             migrationBuilder.DropColumn(
                 name: "Role",
                 table: "Customers");

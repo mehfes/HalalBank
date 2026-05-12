@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260512104551_AddCustomerRole")]
+    [Migration("20260512111354_AddCustomerRole")]
     partial class AddCustomerRole
     {
         /// <inheritdoc />
@@ -73,7 +73,7 @@ namespace Infrastructure.Migrations
                             Email = "john.doe@email.com",
                             FirstName = "John",
                             LastName = "Doe",
-                            Password = "$2a$11$frxmZS2mOPmm935/sz6GZeauwYUgmE2BLZfutvU1QAEslBpKqfSOe",
+                            Password = "$2a$11$XUpNUQrDg84IpI9Fdrd3.uTBHDpCy2Og/Eaf4396yew/kQZKC7toS",
                             Role = "Customer"
                         },
                         new
@@ -83,7 +83,7 @@ namespace Infrastructure.Migrations
                             Email = "jane.smith@email.com",
                             FirstName = "Jane",
                             LastName = "Smith",
-                            Password = "$2a$11$frxmZS2mOPmm935/sz6GZeauwYUgmE2BLZfutvU1QAEslBpKqfSOe",
+                            Password = "$2a$11$XUpNUQrDg84IpI9Fdrd3.uTBHDpCy2Og/Eaf4396yew/kQZKC7toS",
                             Role = "Customer"
                         },
                         new
@@ -93,18 +93,8 @@ namespace Infrastructure.Migrations
                             Email = "bob.wilson@email.com",
                             FirstName = "Bob",
                             LastName = "Wilson",
-                            Password = "$2a$11$frxmZS2mOPmm935/sz6GZeauwYUgmE2BLZfutvU1QAEslBpKqfSOe",
+                            Password = "$2a$11$XUpNUQrDg84IpI9Fdrd3.uTBHDpCy2Og/Eaf4396yew/kQZKC7toS",
                             Role = "Customer"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "admin@test.com",
-                            FirstName = "Admin",
-                            LastName = "User",
-                            Password = "$2a$11$8c8QahXd86fHmcliYNNbvez35xzef9aEZNsuQ44P/KZd5MJhEFklu",
-                            Role = "Admin"
                         });
                 });
 
