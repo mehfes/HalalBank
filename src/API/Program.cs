@@ -78,6 +78,29 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+
+    if (!db.Customers.Any())
+    {
+        db.Customers.AddRange(
+            new HalalBank.Domain.Entities.Customer { Id = 1, FirstName = "John", LastName = "Doe", Email = "john.doe@email.com", Password = "password123", CreatedDate = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc) },
+            new HalalBank.Domain.Entities.Customer { Id = 2, FirstName = "Jane", LastName = "Smith", Email = "jane.smith@email.com", Password = "password123", CreatedDate = new DateTime(2026, 2, 20, 0, 0, 0, DateTimeKind.Utc) },
+            new HalalBank.Domain.Entities.Customer { Id = 3, FirstName = "Bob", LastName = "Wilson", Email = "bob.wilson@email.com", Password = "password123", CreatedDate = new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc) }
+        );
+        db.SubscriptionPlans.AddRange(
+            new HalalBank.Domain.Entities.SubscriptionPlan { Id = 1, Name = "Netflix Premium", Category = "Streaming", DefaultPrice = 15.99m, DefaultBillingCycle = "Monthly" },
+            new HalalBank.Domain.Entities.SubscriptionPlan { Id = 2, Name = "Spotify", Category = "Music", DefaultPrice = 9.99m, DefaultBillingCycle = "Monthly" },
+            new HalalBank.Domain.Entities.SubscriptionPlan { Id = 3, Name = "Gym Membership", Category = "Health", DefaultPrice = 49.99m, DefaultBillingCycle = "Monthly" },
+            new HalalBank.Domain.Entities.SubscriptionPlan { Id = 4, Name = "Internet Bill", Category = "Utilities", DefaultPrice = 59.99m, DefaultBillingCycle = "Monthly" }
+        );
+        db.Subscriptions.AddRange(
+            new HalalBank.Domain.Entities.Subscription { Id = 1, CustomerId = 1, SubscriptionNumber = "SUB-48291", ProviderName = "Netflix", Category = "Streaming", SubscriptionType = HalalBank.Domain.Enums.SubscriptionType.Streaming, Price = 15.99m, BillingCycle = HalalBank.Domain.Enums.BillingCycle.Monthly, NextPaymentDate = new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Utc), Status = HalalBank.Domain.Enums.SubscriptionStatus.Active },
+            new HalalBank.Domain.Entities.Subscription { Id = 2, CustomerId = 1, SubscriptionNumber = "SUB-73518", ProviderName = "Spotify", Category = "Music", SubscriptionType = HalalBank.Domain.Enums.SubscriptionType.Music, Price = 9.99m, BillingCycle = HalalBank.Domain.Enums.BillingCycle.Monthly, NextPaymentDate = new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Utc), Status = HalalBank.Domain.Enums.SubscriptionStatus.Active },
+            new HalalBank.Domain.Entities.Subscription { Id = 3, CustomerId = 2, SubscriptionNumber = "SUB-20946", ProviderName = "Electricity Bill", Category = "Utilities", SubscriptionType = HalalBank.Domain.Enums.SubscriptionType.Electricity, Price = 120.00m, BillingCycle = HalalBank.Domain.Enums.BillingCycle.Monthly, NextPaymentDate = new DateTime(2026, 5, 11, 0, 0, 0, DateTimeKind.Utc), Status = HalalBank.Domain.Enums.SubscriptionStatus.Active },
+            new HalalBank.Domain.Entities.Subscription { Id = 4, CustomerId = 2, SubscriptionNumber = "SUB-66831", ProviderName = "Internet", Category = "Utilities", SubscriptionType = HalalBank.Domain.Enums.SubscriptionType.Internet, Price = 59.99m, BillingCycle = HalalBank.Domain.Enums.BillingCycle.Monthly, NextPaymentDate = new DateTime(2026, 5, 11, 0, 0, 0, DateTimeKind.Utc), Status = HalalBank.Domain.Enums.SubscriptionStatus.Active },
+            new HalalBank.Domain.Entities.Subscription { Id = 5, CustomerId = 3, SubscriptionNumber = "SUB-11387", ProviderName = "Cloud Storage", Category = "Software", SubscriptionType = HalalBank.Domain.Enums.SubscriptionType.Software, Price = 99.99m, BillingCycle = HalalBank.Domain.Enums.BillingCycle.Yearly, NextPaymentDate = new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Utc), Status = HalalBank.Domain.Enums.SubscriptionStatus.Active }
+        );
+        await db.SaveChangesAsync();
+    }
 }
 
 if (app.Environment.IsDevelopment())
