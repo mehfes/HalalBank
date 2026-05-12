@@ -58,7 +58,7 @@ export default function Discover() {
   }
 
   const handleSubscribe = async (plan: Plan) => {
-    if (!user || user.role !== 'Customer' || !user.customerId) return
+    if (!user || isAdmin || !user.customerId) return
     try {
       await api.subscriptions.create({
         customerId: user.customerId,
@@ -269,10 +269,10 @@ export default function Discover() {
             {!isAdmin ? (
               <button
                 onClick={() => handleSubscribe(selectedPlan)}
-                disabled={user?.role !== 'Customer'}
+                disabled={!user || !user.customerId}
                 className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed"
               >
-                {user?.role === 'Customer' ? `Subscribe - $${selectedPlan.defaultPrice.toFixed(2)}/mo` : 'Sign in as Customer'}
+                {user?.customerId ? `Subscribe - $${selectedPlan.defaultPrice.toFixed(2)}/mo` : 'Sign in as Customer'}
               </button>
             ) : (
               <button
