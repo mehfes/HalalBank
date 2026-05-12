@@ -9,7 +9,7 @@ COPY src/Infrastructure/Infrastructure.csproj src/Infrastructure/
 COPY src/API/API.csproj src/API/
 
 # Restore dependencies
-RUN dotnet restore
+RUN dotnet restore src/API/API.csproj
 
 # Copy everything else and build
 COPY . .
