@@ -65,6 +65,7 @@ export const api = {
     processOverdue: () => request<any>('/payment-task/process-overdue', { method: 'POST' }),
     processSubscription: (subscriptionId: number) =>
       request<any>(`/payment-task/process-subscription/${subscriptionId}`, { method: 'POST' }),
+    sendOverdueEmails: () => request<any>('/payment-task/send-overdue-emails', { method: 'POST' }),
   },
   auth: {
     login: (data: { email: string; password: string }) =>

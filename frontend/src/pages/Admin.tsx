@@ -34,6 +34,7 @@ export default function Admin() {
   const [loadingSubs, setLoadingSubs] = useState(true)
   const [taskResult, setTaskResult] = useState<PaymentTaskResult | null>(null)
   const [taskLoading, setTaskLoading] = useState(false)
+  const [emailLoading, setEmailLoading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
   const [processingSubId, setProcessingSubId] = useState<number | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -78,6 +79,18 @@ export default function Admin() {
       loadSubscriptions()
     } catch (err: any) {
       addToast(err.message, 'error')
+    }
+  }
+
+  const handleSendOverdueEmails = async () => {
+    setEmailLoading(true)
+    try {
+      const result = await api.paymentTask.sendOverdueEmails()
+      addToast(`Overdue emails sent: ${result.overdueEmailsSent}`, 'success')
+    } catch (err: any) {
+      addToast(err.message, 'error')
+    } finally {
+      setEmailLoading(false)
     }
   }
 
@@ -309,6 +322,22 @@ export default function Admin() {
               )}
             </div>
           )}
+        </section>
+
+        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Send Overdue Email Notifications</h2>
+              <p className="text-sm text-slate-500 mt-1">Send overdue payment emails to customers with past-due subscriptions.</p>
+            </div>
+            <button
+              onClick={handleSendOverdueEmails}
+              disabled={emailLoading}
+              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+            >
+              {emailLoading ? 'Sending...' : 'Send Overdue Emails'}
+            </button>
+          </div>
         </section>
       </main>
     </div>
