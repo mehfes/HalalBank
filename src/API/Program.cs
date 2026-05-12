@@ -115,15 +115,18 @@ using (var scope = app.Services.CreateScope())
         await db.SaveChangesAsync();
     }
 
-    if (!db.Customers.Any(c => c.Email == "admin@test.com"))
-    {
-        await db.Database.ExecuteSqlRawAsync(@"
-            INSERT INTO ""Customers"" (""Id"", ""FirstName"", ""LastName"", ""Email"", ""Password"", ""Role"", ""CreatedDate"")
-            VALUES (4, 'Admin', 'User', 'admin@test.com', {0}, 'Admin', {1})
-            ON CONFLICT (""Id"") DO NOTHING",
-            BCrypt.Net.BCrypt.HashPassword("admin123"),
-            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-    }
+    var adminHash = BCrypt.Net.BCrypt.HashPassword("admin123");
+    var adminCreated = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    await db.Database.ExecuteSqlRawAsync(@"
+        INSERT INTO ""Customers"" (""Id"", ""FirstName"", ""LastName"", ""Email"", ""Password"", ""Role"", ""CreatedDate"")
+        VALUES (4, 'Admin', 'User', 'admin@test.com', {0}, 'Admin', {1})
+        ON CONFLICT (""Id"") DO UPDATE SET
+            ""Password"" = {0},
+            ""Email"" = 'admin@test.com',
+            ""Role"" = 'Admin',
+            ""FirstName"" = 'Admin',
+            ""LastName"" = 'User'",
+        adminHash, adminCreated);
 
     if (!db.SubscriptionPlans.Any())
     {
