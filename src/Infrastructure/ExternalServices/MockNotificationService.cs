@@ -31,6 +31,12 @@ public class MockNotificationService : INotificationService
         return Task.CompletedTask;
     }
 
+    public Task SendEmailAsync(string toEmail, string toName, string subject, string htmlBody)
+    {
+        _logger.LogInformation("📧 GENERIC EMAIL --- To: {Email} | Subject: {Subject}", toEmail, subject);
+        return Task.CompletedTask;
+    }
+
     public Task SendStatusChangeEmailAsync(Customer customer, Subscription subscription, string oldStatus, string newStatus)
     {
         _logger.LogInformation(

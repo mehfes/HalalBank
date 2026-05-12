@@ -167,6 +167,28 @@ public class EmailNotificationService : INotificationService
 </html>";
     }
 
+    public async Task SendEmailAsync(string toEmail, string toName, string subject, string htmlBody)
+    {
+        var apiKey = _configuration["EmailSettings:SendGridApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            _logger.LogWarning("SendGrid not configured. Falling back to console log for email to {Email}", toEmail);
+            _logger.LogInformation("📧 EMAIL --- To: {Email} | Subject: {Subject}", toEmail, subject);
+            return;
+        }
+
+        try
+        {
+            await SendViaSendGrid(apiKey, toEmail, toName, subject, htmlBody);
+            _logger.LogInformation("✅ REAL EMAIL SENT to {Email} | Subject: {Subject}", toEmail, subject);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "SendGrid failed for {Email} | Subject: {Subject}. Falling back to console log.", toEmail, subject);
+            _logger.LogInformation("📧 EMAIL --- To: {Email} | Subject: {Subject}", toEmail, subject);
+        }
+    }
+
     private void LogToConsole(Customer customer, Subscription subscription, string oldStatus, string newStatus)
     {
         _logger.LogInformation(

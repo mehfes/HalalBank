@@ -85,6 +85,7 @@ erDiagram
 |--------|----------|-------------|------|-------------|----------|
 | `POST` | `/api/auth/login` | Authenticate user | — | `{ email, password }` | `{ id, email, firstName, lastName, role }` |
 | `POST` | `/api/auth/register` | Create new account | — | `{ firstName, lastName, email, password }` | `{ id, email, firstName, lastName, role }` |
+| `POST` | `/api/auth/google-login` | Google OAuth login | — | `{ idToken }` | `{ id, email, firstName, lastName, role }` |
 
 ### 2.2 Customers
 
@@ -358,32 +359,40 @@ flowchart LR
 | **Deployment Topology** | Two-tier (Client + Server) | Frontend and backend are separate processes communicating via HTTP/JSON. The frontend Vite dev server proxies `/api` requests to the .NET backend. In production, they would be deployed as separate artifacts (static files served via CDN + backend behind a reverse proxy). |
 | **Not a Single-Page Application in the traditional sense** | Multi-route SPA | While the frontend uses React SPA architecture (client-side routing via `react-router-dom`), it has multiple distinct pages (`/login`, `/dashboard`, `/discover`, `/admin`, `/payment-gateway/:id`) rather than being a true "single page" infinite scroll app. Each route corresponds to a dedicated view with its own data fetching and state. |
 | **Frontend-Backend Communication** | REST over HTTP | Stateless, cacheable, uniform interface. The frontend `api.ts` service layer wraps all `fetch` calls. No real-time websocket or gRPC needed. |
-| **Authentication** | Mock + Real Backend Auth | Login uses `POST /api/auth/login` which validates credentials against the database. Admin (`admin@test.com`/`admin123`) is handled via frontend mock for simplicity. Passwords stored as plaintext (case study constraint — real app would use hashing). |
+| **Authentication** | Email/Password + Google OAuth | Login validates against database; Google Sign-In verifies ID token server-side via `Google.Apis.Auth`. Admin (`admin@test.com`) is handled via frontend mock (no DB record). Passwords stored as plaintext (case study constraint — real app would use hashing). |
 | **Background Processing** | In-process Hosted Service | `ScheduledPaymentService` runs inside the same ASP.NET process as a `BackgroundService`. No external job scheduler (Hangfire, Quartz) needed. Runs every 6 hours. For a production system, this would be extracted to a separate worker or function. |
-| **Database** | LocalDB (Developer) | SQL Server LocalDB for development. The connection string in `appsettings.json` can be swapped to a full SQL Server instance for staging/production. EF Core migrations handle schema versioning. |
+| **Database** | PostgreSQL (Railway) | PostgreSQL hosted on Railway. Auto-migration on startup via `db.Database.MigrateAsync()`. Seed data inserted on first run. Connection string from `DATABASE_URL` env var. |
 
 ### 4.2 Communication Patterns
 
 ```
-┌──────────┐         HTTP REST (JSON)         ┌────────────┐
-│  React   │ ──────────────────────────────►   │  .NET API  │
-│  Client  │                                   │  Backend   │
-│:3000     │ ◄──────────────────────────────   │:5000       │
-└──────────┘         JSON Responses            └─────┬──────┘
-                                                      │
-                                  ┌───────────────────┼───────────────────┐
-                                  │                   │                   │
-                                  ▼                   ▼                   ▼
-                          ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-                          │   SQL Server  │   │ Mock Payment │   │  SMTP Email  │
-                          │   (LocalDB)   │   │   Gateway    │   │   (Gmail)    │
-                          └──────────────┘   └──────────────┘   └──────────────┘
+┌─────────────────┐                  ┌──────────────────────┐
+│  Cloudflare     │   HTTP REST      │    Railway (.NET)    │
+│  Pages (React)  │ ◄──────────────► │    Backend API       │
+│  Frontend SPA   │    JSON          │    :8080             │
+└─────────────────┘                  └──────────┬───────────┘
+                                                 │
+                    ┌────────────────────────────┼────────────────────────────┐
+                    │                            │                            │
+                    ▼                            ▼                            ▼
+          ┌──────────────────┐       ┌──────────────────┐       ┌──────────────────────┐
+          │  PostgreSQL      │       │  Mock Payment    │       │  Google Auth         │
+          │  (Railway Addon) │       │  Gateway (in-proc)│       │  (Token Verification)│
+          └──────────────────┘       └──────────────────┘       └──────────────────────┘
+                                                                          │
+                    ┌──────────────────────────────────────────────────────┘
+                    ▼
+          ┌──────────────────────┐
+          │  SendGrid HTTP API   │
+          │  (Email Delivery)    │
+          └──────────────────────┘
 ```
 
-- **Frontend ↔ Backend:** Synchronous REST calls (request → response)
-- **Backend ↔ Database:** Entity Framework Core (ORM, connection pooling)
-- **Backend ↔ External Services:** `IHttpClientFactory` with named client `"MockBankApi"` (mock HTTP handler)
-- **Backend → Email:** `SmtpClient` (synchronous send within request or background task)
+- **Frontend ↔ Backend:** Synchronous REST calls over HTTPS (Cloudflare Pages → Railway)
+- **Backend ↔ Database:** Entity Framework Core with Npgsql (PostgreSQL, connection pooling)
+- **Backend ↔ Mock Payment:** `IHttpClientFactory` with named client `"MockBankApi"` (in-process HTTP handler simulating real bank API)
+- **Backend → Google:** `GoogleJsonWebSignature.ValidateAsync()` verifies ID token via Google's public keys
+- **Backend → SendGrid:** HTTP POST to `api.sendgrid.com/v3/mail/send` (port 443)
 - **Background Service:** Uses DI scope factory to resolve services independently of HTTP requests
 
 ### 4.3 Route Map
@@ -391,7 +400,7 @@ flowchart LR
 | Frontend Route | Page Component | Access | API Endpoints Used |
 |---------------|----------------|--------|-------------------|
 | `/` | Redirect → `/login` | Public | — |
-| `/login` | `Login.tsx` | Public | `POST /api/auth/login` |
+| `/login` | `Login.tsx` | Public | `POST /api/auth/login` · `POST /api/auth/google-login` |
 | `/register` | `Register.tsx` | Public | `POST /api/auth/register` |
 | `/dashboard` | `Dashboard.tsx` | Any authenticated user | `GET /api/subscriptions/by-customer/{id}` |
 | `/discover` | `Discover.tsx` | Any authenticated user | `GET /api/subscriptionplans` · `POST /api/subscriptions` · `DELETE /api/subscriptionplans/{id}` |
@@ -411,7 +420,7 @@ flowchart LR
 | `IAuthService` | `AuthService` | Scoped | Login validation + user registration |
 | `IPaymentGateway` | `MockPaymentGateway` | Scoped | Direct mock: returns success if amount > 0 |
 | `IExternalPaymentService` | `MockExternalPaymentService` | Scoped | HTTP-based mock using `IHttpClientFactory` |
-| `INotificationService` | `EmailNotificationService` | Scoped | Real SMTP email with console fallback |
+| `INotificationService` | `EmailNotificationService` | Scoped | SendGrid HTTP API email with console fallback |
 | `IHttpClientFactory` | `"MockBankApi"` client | Singleton | Named client with `MockBankMessageHandler` pipeline |
 | `ScheduledPaymentService` | `BackgroundService` | Singleton | Auto-runs overdue check + reminders every 6 hours |
 
@@ -422,7 +431,8 @@ flowchart LR
 | **Debt Query** | `IExternalPaymentService.CheckDebtAsync()` | `MockBankMessageHandler` | Returns exact subscription price from URL path |
 | **Payment Processing** | `IExternalPaymentService.ProcessPaymentAsync()` | `MockBankMessageHandler` | 1s simulated delay · 80% success / 20% failure |
 | **Payment Gateway** | `IPaymentGateway.ProcessPaymentAsync()` | `MockPaymentGateway` | Returns `success: true` if amount > 0 (no HTTP) |
-| **Email Notification** | `INotificationService.SendReminderEmailAsync()` | `EmailNotificationService` | Real SMTP via `SmtpClient` · falls back to console log if unconfigured |
+| **Email Notification** | `INotificationService.SendReminderEmailAsync()` | `EmailNotificationService` | SendGrid HTTP API via `HttpClient` (port 443) · falls back to console log if unconfigured |
+| **Google Auth** | `IAuthService.GoogleLoginAsync()` | `AuthService` with `Google.Apis.Auth` | Verifies ID token via `GoogleJsonWebSignature.ValidateAsync()` · auto-creates customer |
 
 ### 4.6 Technology Stack
 
@@ -432,7 +442,7 @@ flowchart LR
 | **Backend Framework** | ASP.NET Core Web API | 8.0 | REST API framework |
 | **Architecture** | Clean Architecture | — | Separation of concerns: Domain → Application → Infrastructure → API |
 | **ORM** | Entity Framework Core | 8.0 | Database access with migrations |
-| **Database** | MS SQL Server (LocalDB) | — | Relational data store |
+| **Database** | PostgreSQL (Railway) | 15+ | Relational data store (hosted on Railway) |
 | **Frontend Runtime** | TypeScript | ~5.x | Type-safe JavaScript |
 | **Frontend Framework** | React | 18.x | Component-based UI |
 | **Build Tool** | Vite | 6.x | Fast dev server and bundler |
@@ -440,7 +450,10 @@ flowchart LR
 | **Backend Testing** | xUnit + Moq + FluentAssertions | — | Unit testing with mocking |
 | **Frontend Testing** | Vitest + testing-library + happy-dom | — | Component and context testing |
 | **CI/CD** | GitHub Actions | — | Automated build and test on push/PR |
-| **Auth** | Mock + Backend API | — | Email/password validation via auth controller |
+| **Auth** | Email/Password + Google OAuth | — | Login via backend API + Google Identity Services |
+| **Email** | SendGrid HTTP API | — | Transactional email delivery (port 443, works on Railway) |
+| **Deployment (Backend)** | Railway | — | .NET 8 + PostgreSQL, auto-deploy from GitHub |
+| **Deployment (Frontend)** | Cloudflare Pages | — | Static SPA hosting, auto-deploy from GitHub |
 
 ---
 

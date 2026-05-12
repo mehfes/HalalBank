@@ -57,5 +57,7 @@ export const api = {
       request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     googleLogin: (data: { idToken: string }) =>
       request<{ id: number; email: string; firstName: string; lastName: string; role: string }>('/auth/google-login', { method: 'POST', body: JSON.stringify(data) }),
+    forgotPassword: (data: { email: string }) =>
+      request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify(data) }),
   },
 }

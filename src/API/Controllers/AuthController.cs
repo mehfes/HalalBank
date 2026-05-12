@@ -35,4 +35,11 @@ public class AuthController : ControllerBase
         var result = await _authService.GoogleLoginAsync(dto);
         return Ok(result);
     }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
+    {
+        await _authService.ForgotPasswordAsync(dto);
+        return Ok(new { message = "If this email is registered, a password reset link has been sent." });
+    }
 }
