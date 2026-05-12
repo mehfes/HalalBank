@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../contexts/AuthContext'
+import { ToastProvider } from '../contexts/ToastContext'
 import Admin from '../pages/Admin'
 
 vi.mock('../services/api', () => {
@@ -27,7 +28,9 @@ function renderAdmin() {
   return render(
     <MemoryRouter>
       <AuthProvider>
-        <Admin />
+        <ToastProvider>
+          <Admin />
+        </ToastProvider>
       </AuthProvider>
     </MemoryRouter>
   )

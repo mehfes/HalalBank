@@ -53,10 +53,8 @@
 - **All API endpoints are public** — anyone can read/write customers, subscriptions, payments
 
 ### Missing Features
-- **Admin cannot create subscriptions for users** — admin can only manage existing ones
 - **No delete confirmation dialogs** on admin panel
 - **No loading skeletons** on pages
-- **No pagination** for large data sets
 - **No search/filter** on subscriptions or customers
 
 ---

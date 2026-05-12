@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 import Navbar from '../components/Navbar'
 import PaymentHistoryModal from '../components/PaymentHistoryModal'
+import { SkeletonTable } from '../components/Skeleton'
 
 interface Subscription {
   id: number
@@ -30,7 +32,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
-  const [showToast, setShowToast] = useState(false)
+  const { addToast } = useToast()
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
   const [historySub, setHistorySub] = useState<{ id: number; name: string } | null>(null)
@@ -41,8 +43,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (location.state?.paymentSuccess) {
-      setShowToast(true)
-      setTimeout(() => setShowToast(false), 4000)
+      addToast('Payment completed successfully!', 'success')
       window.history.replaceState({}, document.title)
     }
   }, [location.state])
@@ -83,9 +84,22 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-slate-50">
         <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <p className="text-slate-500 text-lg">Loading...</p>
-        </div>
+        <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-pulse">
+              <div className="h-4 w-32 bg-slate-200 rounded" />
+              <div className="h-8 w-16 bg-slate-200 rounded mt-3" />
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-pulse">
+              <div className="h-4 w-32 bg-slate-200 rounded" />
+              <div className="h-8 w-16 bg-slate-200 rounded mt-3" />
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="h-5 w-40 bg-slate-200 rounded mb-4" />
+            <SkeletonTable rows={4} cols={8} />
+          </div>
+        </main>
       </div>
     )
   }
@@ -167,11 +181,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {showToast && (
-        <div className="fixed top-4 right-4 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium animate-slide-in">
-          Payment completed successfully!
-        </div>
-      )}
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">

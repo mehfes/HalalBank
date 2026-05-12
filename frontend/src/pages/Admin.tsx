@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
+import ConfirmDialog from '../components/ConfirmDialog'
+import { SkeletonTable } from '../components/Skeleton'
 import Navbar from '../components/Navbar'
 
 interface Subscription {
@@ -26,12 +29,12 @@ interface PaymentTaskResult {
 
 export default function Admin() {
   const { user } = useAuth()
+  const { addToast } = useToast()
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loadingSubs, setLoadingSubs] = useState(true)
   const [taskResult, setTaskResult] = useState<PaymentTaskResult | null>(null)
   const [taskLoading, setTaskLoading] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
   const [processingSubId, setProcessingSubId] = useState<number | null>(null)
 
   const loadSubscriptions = () => {
@@ -50,21 +53,21 @@ export default function Admin() {
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
       await api.subscriptions.update(id, { status: newStatus })
-      setToast(`Subscription status changed to ${newStatus}`)
+      addToast(`Subscription status changed to ${newStatus}`, 'success')
       loadSubscriptions()
     } catch (err: any) {
-      setToast(`Error: ${err.message}`)
+      addToast(err.message, 'error')
     }
   }
 
   const handleDelete = async (id: number) => {
     try {
       await api.subscriptions.delete(id)
-      setToast('Subscription deleted')
-      setDeleteConfirm(null)
+      addToast('Subscription deleted', 'success')
+      setDeleteTarget(null)
       loadSubscriptions()
     } catch (err: any) {
-      setToast(`Error: ${err.message}`)
+      addToast(err.message, 'error')
     }
   }
 
@@ -86,11 +89,11 @@ export default function Admin() {
     setProcessingSubId(id)
     try {
       const result = await api.paymentTask.processSubscription(id)
-      setToast(`Processed: ${result.paidCount} paid, ${result.failedCount} failed, ${result.skippedCount} skipped`)
+      addToast(`Processed: ${result.paidCount} paid, ${result.failedCount} failed, ${result.skippedCount} skipped`, 'success')
       setTaskResult(result)
       loadSubscriptions()
     } catch (err: any) {
-      setToast(`Error: ${err.message}`)
+      addToast(err.message, 'error')
     } finally {
       setProcessingSubId(null)
     }
@@ -98,11 +101,13 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium animate-slide-in">
-          {toast}
-        </div>
-      )}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Subscription"
+        message="Are you sure you want to delete this subscription? This action cannot be undone."
+        onConfirm={() => deleteTarget !== null && handleDelete(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
+      />
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
         <div>
@@ -113,7 +118,7 @@ export default function Admin() {
         <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <h2 className="text-lg font-semibold text-slate-800 mb-4">All Subscriptions</h2>
           {loadingSubs ? (
-            <p className="text-slate-400 text-sm text-center py-8">Loading subscriptions...</p>
+            <SkeletonTable rows={6} cols={10} />
           ) : subscriptions.length === 0 ? (
             <p className="text-slate-400 text-sm text-center py-8">No subscriptions in the system.</p>
           ) : (
@@ -168,29 +173,12 @@ export default function Admin() {
                             <option value="Active">Active</option>
                             <option value="Passive">Passive</option>
                           </select>
-                          {deleteConfirm === sub.id ? (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => handleDelete(sub.id)}
-                                className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors cursor-pointer"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={() => setDeleteConfirm(null)}
-                                className="px-2 py-1 bg-slate-300 hover:bg-slate-400 text-slate-700 text-xs rounded transition-colors cursor-pointer"
-                              >
-                                No
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setDeleteConfirm(sub.id)}
-                              className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors cursor-pointer"
-                            >
-                              Delete
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setDeleteTarget(sub.id)}
+                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors cursor-pointer"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>

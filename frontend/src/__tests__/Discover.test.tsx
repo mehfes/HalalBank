@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../contexts/AuthContext'
+import { ToastProvider } from '../contexts/ToastContext'
 import { api } from '../services/api'
 import Discover from '../pages/Discover'
 
@@ -28,7 +29,9 @@ function renderDiscoverAsCustomer() {
   return render(
     <MemoryRouter>
       <AuthProvider>
-        <Discover />
+        <ToastProvider>
+          <Discover />
+        </ToastProvider>
       </AuthProvider>
     </MemoryRouter>
   )
@@ -39,7 +42,9 @@ function renderDiscoverAsAdmin() {
   return render(
     <MemoryRouter>
       <AuthProvider>
-        <Discover />
+        <ToastProvider>
+          <Discover />
+        </ToastProvider>
       </AuthProvider>
     </MemoryRouter>
   )
@@ -53,7 +58,7 @@ describe('Discover Page - Customer', () => {
 
   it('should show loading state initially', () => {
     renderDiscoverAsCustomer()
-    expect(screen.getByText('Loading plans...')).toBeDefined()
+    expect(screen.queryByText('Netflix Premium')).toBeNull()
   })
 
   it('should render plan cards after loading', async () => {
@@ -149,7 +154,7 @@ describe('Discover Page - Admin', () => {
 
   it('should show loading state initially', () => {
     renderDiscoverAsAdmin()
-    expect(screen.getByText('Loading plans...')).toBeDefined()
+    expect(screen.queryByText('Netflix Premium')).toBeNull()
   })
 
   it('should render plan cards after loading', async () => {
@@ -233,6 +238,14 @@ describe('Discover Page - Admin', () => {
     await userEvent.click(screen.getAllByText('Delete')[0])
 
     await waitFor(() => {
+      expect(screen.getByText('Delete Plan')).toBeDefined()
+    })
+
+    const cancelBtn = screen.getByText('Cancel')
+    const confirmBtn = cancelBtn.nextElementSibling as HTMLElement
+    await userEvent.click(confirmBtn!)
+
+    await waitFor(() => {
       expect(vi.mocked(api.subscriptionPlans.delete).mock.calls.length).toBe(1)
       expect(vi.mocked(api.subscriptionPlans.delete).mock.calls[0][0]).toBe(1)
     })
@@ -246,6 +259,14 @@ describe('Discover Page - Admin', () => {
     })
 
     await userEvent.click(screen.getAllByText('Delete')[0])
+
+    await waitFor(() => {
+      expect(screen.getByText('Delete Plan')).toBeDefined()
+    })
+
+    const cancelBtn = screen.getByText('Cancel')
+    const confirmBtn = cancelBtn.nextElementSibling as HTMLElement
+    await userEvent.click(confirmBtn!)
 
     await waitFor(() => {
       expect(screen.getByText('Plan deleted')).toBeDefined()

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
+import ConfirmDialog from '../components/ConfirmDialog'
+import { SkeletonCard } from '../components/Skeleton'
 import Navbar from '../components/Navbar'
 
 interface Plan {
@@ -22,12 +25,13 @@ const emptyForm = { name: '', category: '', defaultPrice: '', defaultBillingCycl
 export default function Discover() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { addToast } = useToast()
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
-  const [toast, setToast] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
   const loadPlans = () => {
     setLoading(true)
@@ -66,21 +70,22 @@ export default function Discover() {
         billingCycle: plan.defaultBillingCycle,
         nextPaymentDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       })
-      setToast(`Subscribed to ${plan.name}!`)
+      addToast(`Subscribed to ${plan.name}!`, 'success')
       setSelectedPlan(null)
       setTimeout(() => navigate('/dashboard'), 1200)
     } catch (err: any) {
-      setToast(`Error: ${err.message}`)
+      addToast(err.message, 'error')
     }
   }
 
   const handleDelete = async (id: number) => {
     try {
       await api.subscriptionPlans.delete(id)
-      setToast('Plan deleted')
+      addToast('Plan deleted', 'success')
+      setDeleteTarget(null)
       loadPlans()
     } catch (err: any) {
-      setToast(`Error: ${err.message}`)
+      addToast(err.message, 'error')
     }
   }
 
@@ -93,12 +98,12 @@ export default function Discover() {
         defaultPrice: parseFloat(form.defaultPrice),
         defaultBillingCycle: form.defaultBillingCycle,
       })
-      setToast('Plan created')
+      addToast('Plan created', 'success')
       setForm(emptyForm)
       setShowForm(false)
       loadPlans()
     } catch (err: any) {
-      setToast(`Error: ${err.message}`)
+      addToast(err.message, 'error')
     }
   }
 
@@ -108,20 +113,25 @@ export default function Discover() {
     return (
       <div className="min-h-screen bg-slate-50">
         <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <p className="text-slate-500 text-lg">Loading plans...</p>
-        </div>
+        <main className="max-w-6xl mx-auto px-4 py-8">
+          <div className="h-8 w-48 bg-slate-200 rounded animate-pulse mb-8" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        </main>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium animate-slide-in">
-          {toast}
-        </div>
-      )}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Plan"
+        message="Are you sure you want to delete this plan? This cannot be undone."
+        onConfirm={() => deleteTarget !== null && handleDelete(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
+      />
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
         <div className="flex items-center justify-between">
@@ -208,7 +218,7 @@ export default function Discover() {
               </div>
               {isAdmin && (
                 <button
-                  onClick={e => { e.stopPropagation(); handleDelete(plan.id) }}
+                  onClick={e => { e.stopPropagation(); setDeleteTarget(plan.id) }}
                   className="mt-6 w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer"
                 >
                   Delete
