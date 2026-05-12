@@ -49,7 +49,20 @@ public class ScheduledPaymentService : BackgroundService
         _logger.LogInformation("Overdue check complete: {Checked} checked, {Paid} paid, {Failed} failed, {Skipped} skipped",
             paymentResult.CheckedCount, paymentResult.PaidCount, paymentResult.FailedCount, paymentResult.SkippedCount);
 
-        // 2. Send reminder emails for subscriptions due within 3 days
+        // 2. Send overdue emails for subscriptions past their due date
+        _logger.LogInformation("Running overdue email notifications...");
+        var overdue = await unitOfWork.Subscriptions.GetOverdueAsync(now);
+        var overdueSentCount = 0;
+
+        foreach (var subscription in overdue)
+        {
+            await notificationService.SendOverdueEmailAsync(subscription.Customer, subscription);
+            overdueSentCount++;
+        }
+
+        _logger.LogInformation("Overdue emails sent: {Count}", overdueSentCount);
+
+        // 3. Send reminder emails for subscriptions due within 3 days
         _logger.LogInformation("Running scheduled email reminders...");
         var upcoming = await unitOfWork.Subscriptions.GetUpcomingPaymentsAsync(now, now.AddDays(3));
         var sentCount = 0;

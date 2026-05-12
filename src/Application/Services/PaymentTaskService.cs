@@ -50,6 +50,23 @@ public class PaymentTaskService : IPaymentTaskService
         }
 
         result.CheckedCount = 1;
+
+        var now = DateTime.UtcNow;
+        var alreadyPaid = await _unitOfWork.Payments.HasSuccessfulPaymentForPeriodAsync(subscriptionId, now.Year, now.Month);
+        if (alreadyPaid)
+        {
+            result.SkippedCount++;
+            result.Details.Add($"Subscription {subscription.Id} ({subscription.ProviderName}): Already paid for this period.");
+            return result;
+        }
+
+        if (subscription.NextPaymentDate > now)
+        {
+            result.SkippedCount++;
+            result.Details.Add($"Subscription {subscription.Id} ({subscription.ProviderName}): Not yet due (next payment {subscription.NextPaymentDate:yyyy-MM-dd}).");
+            return result;
+        }
+
         await ProcessSingleSubscription(subscription, result);
 
         if (result.PaidCount > 0 || result.FailedCount > 0)

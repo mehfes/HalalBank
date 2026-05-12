@@ -46,6 +46,51 @@ public class EmailNotificationService : INotificationService
         }
     }
 
+    public async Task SendOverdueEmailAsync(Customer customer, Subscription subscription)
+    {
+        var apiKey = _configuration["EmailSettings:SendGridApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            _logger.LogWarning("SendGrid not configured. Falling back to console log for overdue email to {Email}", customer.Email);
+            _logger.LogInformation(
+                "📧 OVERDUE EMAIL --- To: {Email} | Subject: Payment Overdue for {Provider} | " +
+                "Body: Dear {Name}, your subscription '{Provider}' ({Category}, ${Price}) " +
+                "was due on {Date} and is now overdue. Subscription #: {SubNo}. Please pay immediately to avoid suspension.",
+                customer.Email, subscription.ProviderName,
+                $"{customer.FirstName} {customer.LastName}",
+                subscription.ProviderName, subscription.Category,
+                subscription.Price,
+                subscription.NextPaymentDate.ToString("dd MMM yyyy"),
+                subscription.SubscriptionNumber);
+            return;
+        }
+
+        try
+        {
+            await SendViaSendGrid(apiKey, customer.Email, $"{customer.FirstName} {customer.LastName}",
+                $"Payment Overdue — {subscription.ProviderName}",
+                BuildOverdueBody(customer, subscription));
+
+            _logger.LogInformation(
+                "✅ REAL OVERDUE EMAIL SENT to {Email} for subscription {Provider} (Sub #{SubNo})",
+                customer.Email, subscription.ProviderName, subscription.SubscriptionNumber);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "SendGrid failed for {Email}. Falling back to console log for overdue subscription {Provider}", customer.Email, subscription.ProviderName);
+            _logger.LogInformation(
+                "📧 OVERDUE EMAIL --- To: {Email} | Subject: Payment Overdue for {Provider} | " +
+                "Body: Dear {Name}, your subscription '{Provider}' ({Category}, ${Price}) " +
+                "was due on {Date} and is now overdue. Subscription #: {SubNo}.",
+                customer.Email, subscription.ProviderName,
+                $"{customer.FirstName} {customer.LastName}",
+                subscription.ProviderName, subscription.Category,
+                subscription.Price,
+                subscription.NextPaymentDate.ToString("dd MMM yyyy"),
+                subscription.SubscriptionNumber);
+        }
+    }
+
     public async Task SendReminderEmailAsync(Customer customer, Subscription subscription)
     {
         var apiKey = _configuration["EmailSettings:SendGridApiKey"];
@@ -139,6 +184,28 @@ public class EmailNotificationService : INotificationService
         <tr><td style='padding: 8px;'><strong>Subscription #</strong></td><td style='padding: 8px;'>{subscription.SubscriptionNumber}</td></tr>
     </table>
     <p>If you have any questions, please contact our support team.</p>
+    <hr style='border: none; border-top: 1px solid #eee; margin: 20px 0;'/>
+    <p style='color: #888; font-size: 12px;'>This is an automated message from HalalBank. Please do not reply.</p>
+</body>
+</html>";
+    }
+
+    private static string BuildOverdueBody(Customer customer, Subscription subscription)
+    {
+        return $@"
+<html>
+<body style='font-family: Arial, sans-serif; padding: 20px;'>
+    <h2 style='color: #dc2626;'>HalalBank — Payment Overdue</h2>
+    <p>Dear <strong>{customer.FirstName} {customer.LastName}</strong>,</p>
+    <p>Your subscription payment is <strong style='color: #dc2626;'>past due</strong>. Please make the payment immediately to avoid service suspension.</p>
+    <table style='border-collapse: collapse; margin: 20px 0; width: 100%; max-width: 500px;'>
+        <tr><td style='padding: 8px; border-bottom: 1px solid #ddd;'><strong>Subscription</strong></td><td style='padding: 8px; border-bottom: 1px solid #ddd;'>{subscription.ProviderName}</td></tr>
+        <tr><td style='padding: 8px; border-bottom: 1px solid #ddd;'><strong>Category</strong></td><td style='padding: 8px; border-bottom: 1px solid #ddd;'>{subscription.Category}</td></tr>
+        <tr><td style='padding: 8px; border-bottom: 1px solid #ddd;'><strong>Amount</strong></td><td style='padding: 8px; border-bottom: 1px solid #ddd;'>${subscription.Price:F2}</td></tr>
+        <tr><td style='padding: 8px; border-bottom: 1px solid #ddd;'><strong>Due Date</strong></td><td style='padding: 8px; border-bottom: 1px solid #ddd;'>{subscription.NextPaymentDate:dd MMM yyyy}</td></tr>
+        <tr><td style='padding: 8px;'><strong>Subscription #</strong></td><td style='padding: 8px;'>{subscription.SubscriptionNumber}</td></tr>
+    </table>
+    <p style='color: #dc2626;'>⚠ Please pay now to keep your subscription active.</p>
     <hr style='border: none; border-top: 1px solid #eee; margin: 20px 0;'/>
     <p style='color: #888; font-size: 12px;'>This is an automated message from HalalBank. Please do not reply.</p>
 </body>

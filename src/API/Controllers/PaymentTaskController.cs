@@ -38,6 +38,22 @@ public class PaymentTaskController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("send-overdue-emails")]
+    public async Task<IActionResult> SendOverdueEmails()
+    {
+        var now = DateTime.UtcNow;
+        var overdue = await _unitOfWork.Subscriptions.GetOverdueAsync(now);
+        var sentCount = 0;
+
+        foreach (var subscription in overdue)
+        {
+            await _notificationService.SendOverdueEmailAsync(subscription.Customer, subscription);
+            sentCount++;
+        }
+
+        return Ok(new { overdueEmailsSent = sentCount });
+    }
+
     [HttpPost("send-reminders")]
     public async Task<IActionResult> SendReminders()
     {

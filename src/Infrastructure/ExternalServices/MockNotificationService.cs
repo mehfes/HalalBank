@@ -13,6 +13,24 @@ public class MockNotificationService : INotificationService
         _logger = logger;
     }
 
+    public Task SendOverdueEmailAsync(Customer customer, Subscription subscription)
+    {
+        _logger.LogInformation(
+            "📧 OVERDUE EMAIL SENT --- To: {Email} | Subject: Payment Overdue for {Provider} | " +
+            "Body: Dear {Name}, your subscription '{Provider}' ({Category}, ${Price}) " +
+            "was due on {Date} and is now overdue. Subscription #: {SubNo}. Please pay immediately.",
+            customer.Email,
+            subscription.ProviderName,
+            $"{customer.FirstName} {customer.LastName}",
+            subscription.ProviderName,
+            subscription.Category,
+            subscription.Price,
+            subscription.NextPaymentDate.ToString("dd MMM yyyy"),
+            subscription.SubscriptionNumber);
+
+        return Task.CompletedTask;
+    }
+
     public Task SendReminderEmailAsync(Customer customer, Subscription subscription)
     {
         _logger.LogInformation(
