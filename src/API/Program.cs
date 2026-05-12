@@ -8,6 +8,7 @@ using HalalBank.Infrastructure.ExternalServices;
 using HalalBank.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -117,17 +118,24 @@ using (var scope = app.Services.CreateScope())
 
     if (!db.Customers.Any(c => c.Email == "admin@test.com"))
     {
-        db.Customers.Add(new HalalBank.Domain.Entities.Customer
+        try
         {
-            Id = 4,
-            FirstName = "Admin",
-            LastName = "User",
-            Email = "admin@test.com",
-            Password = BCrypt.Net.BCrypt.HashPassword("admin123"),
-            Role = "Admin",
-            CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-        });
-        await db.SaveChangesAsync();
+            db.Customers.Add(new HalalBank.Domain.Entities.Customer
+            {
+                Id = 4,
+                FirstName = "Admin",
+                LastName = "User",
+                Email = "admin@test.com",
+                Password = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                Role = "Admin",
+                CreatedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            });
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Race condition: another instance already inserted the admin user.
+        }
     }
 
     if (!db.SubscriptionPlans.Any())
