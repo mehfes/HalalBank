@@ -64,7 +64,7 @@ export default function Dashboard() {
       }).finally(() => setLoading(false))
     } else if (user.customerId) {
       api.subscriptions.getByCustomerId(user.customerId)
-        .then(setSubscriptions)
+        .then(data => setSubscriptions(data.sort((a, b) => a.price - b.price)))
         .catch(console.error)
         .finally(() => setLoading(false))
     } else {
